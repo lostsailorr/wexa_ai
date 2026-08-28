@@ -84,4 +84,5 @@ body {
   left: auto !important;
   top: auto !important;
   transform: none !important;
+  margin: 0 !important;
 }

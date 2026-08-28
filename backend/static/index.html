@@ -270,6 +270,16 @@
           </div>
         </div>
       </div>
+
+      <!-- SIDEBAR FOOTER: MADE BY ROBIN -->
+      <div class="pt-4 mt-4 border-t border-dark-700/60 text-center">
+        <div class="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-full bg-dark-700/60 border border-dark-600 text-[11px] text-slate-300">
+          <span>Built with</span>
+          <span class="text-rose-500 animate-pulse">❤️</span>
+          <span>by</span>
+          <span class="font-bold bg-gradient-to-r from-cyan-400 to-indigo-400 bg-clip-text text-transparent">Robin</span>
+        </div>
+      </div>
     </aside>
 
     <!-- CENTER / WORKSPACE: VIEW PANELS -->
@@ -455,8 +465,8 @@
   <div id="walkthroughOverlay" class="hidden fixed inset-0 z-50 pointer-events-none transition-all duration-300">
     <div id="tourBackdrop" onclick="stopWalkthrough()" class="absolute inset-0 bg-dark-900/35 backdrop-blur-[2px] pointer-events-auto cursor-pointer"></div>
     
-    <!-- Floating Bottom-Right Tour Guide Dock -->
-    <div id="tourCard" style="bottom: 24px !important; right: 24px !important; left: auto !important; top: auto !important;" class="fixed pointer-events-auto max-w-md w-[420px] p-5 rounded-2xl bg-dark-800/98 border border-cyan-500/60 shadow-2xl shadow-cyan-500/25 backdrop-blur-xl transition-all duration-300 z-50">
+    <!-- Floating Tour Guide Dock: Strict bottom-right positioning, zero overlap -->
+    <div id="tourCard" class="fixed bottom-6 right-6 pointer-events-auto max-w-md w-[420px] p-5 rounded-2xl bg-dark-800/98 border border-cyan-500/60 shadow-2xl shadow-cyan-500/25 backdrop-blur-xl transition-all duration-300 z-50">
       <div class="flex items-center justify-between border-b border-dark-700/80 pb-3 mb-3">
         <div class="flex items-center space-x-2">
           <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse"></span>

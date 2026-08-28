@@ -1766,6 +1766,7 @@ function exportGraphImage() {
   }
 }
 
+
 // ==========================================
 // 8. INTERACTIVE GUIDED WALKTHROUGH
 // ==========================================
@@ -1773,8 +1774,8 @@ let currentTourIndex = 0;
 const tourSteps = [
   {
     targetId: "statsRibbon",
-    title: "📊 Live Network Topology Telemetry",
-    desc: "SentinelGraph continuously monitors network telemetry: 10 Persons, 11 Companies, 13 Bank Accounts, and 49 Relationships with live risk scores.",
+    title: "📊 Live Network Telemetry",
+    desc: "SentinelGraph aggregates high-level telemetry across your entire graph database: 10 Persons, 11 Companies, 13 Bank Accounts, and 49 Relationships with live risk indicators.",
     action: () => switchTab("explorer")
   },
   {
@@ -1857,6 +1858,17 @@ function renderTourStep() {
   const prevBtn = document.getElementById("tourPrevBtn");
   const nextBtn = document.getElementById("tourNextBtn");
   const dotsContainer = document.getElementById("tourDots");
+  const card = document.getElementById("tourCard");
+
+  // Keep card strictly pinned to bottom-right
+  if (card) {
+    card.style.position = "fixed";
+    card.style.bottom = "24px";
+    card.style.right = "24px";
+    card.style.left = "auto";
+    card.style.top = "auto";
+    card.style.transform = "none";
+  }
 
   if (badge) badge.innerText = `Step ${currentTourIndex + 1} of ${tourSteps.length}`;
   if (title) title.innerText = step.title;
@@ -1865,7 +1877,6 @@ function renderTourStep() {
   if (prevBtn) prevBtn.style.visibility = currentTourIndex === 0 ? "hidden" : "visible";
   if (nextBtn) nextBtn.innerText = currentTourIndex === tourSteps.length - 1 ? "Finish Tour 🎉" : "Next →";
 
-  // Render progress dots
   if (dotsContainer) {
     dotsContainer.innerHTML = tourSteps.map((_, i) => `
       <span class="w-1.5 h-1.5 rounded-full transition-all ${i === currentTourIndex ? 'bg-cyan-400 w-3' : 'bg-dark-600'}"></span>
@@ -1875,7 +1886,6 @@ function renderTourStep() {
   const targetEl = document.getElementById(step.targetId);
   if (targetEl) {
     targetEl.classList.add("tour-highlight");
-    targetEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 
   if (window.lucide) lucide.createIcons();

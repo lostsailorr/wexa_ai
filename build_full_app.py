@@ -10,7 +10,7 @@ exec(text, {}, loc)
 mock_nodes = loc["MOCK_NODES"]
 mock_edges = loc["MOCK_EDGES"]
 
-# 2. Build index.html
+# 2. Build index.html with "Made by Robin" in sidebar and footer
 INDEX_HTML = """<!DOCTYPE html>
 <html lang="en" class="dark">
 <head>
@@ -283,6 +283,16 @@ INDEX_HTML = """<!DOCTYPE html>
           </div>
         </div>
       </div>
+
+      <!-- SIDEBAR FOOTER: MADE BY ROBIN -->
+      <div class="pt-4 mt-4 border-t border-dark-700/60 text-center">
+        <div class="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-full bg-dark-700/60 border border-dark-600 text-[11px] text-slate-300">
+          <span>Built with</span>
+          <span class="text-rose-500 animate-pulse">❤️</span>
+          <span>by</span>
+          <span class="font-bold bg-gradient-to-r from-cyan-400 to-indigo-400 bg-clip-text text-transparent">Robin</span>
+        </div>
+      </div>
     </aside>
 
     <!-- CENTER / WORKSPACE: VIEW PANELS -->
@@ -468,8 +478,8 @@ INDEX_HTML = """<!DOCTYPE html>
   <div id="walkthroughOverlay" class="hidden fixed inset-0 z-50 pointer-events-none transition-all duration-300">
     <div id="tourBackdrop" onclick="stopWalkthrough()" class="absolute inset-0 bg-dark-900/35 backdrop-blur-[2px] pointer-events-auto cursor-pointer"></div>
     
-    <!-- Floating Bottom-Right Tour Guide Dock -->
-    <div id="tourCard" style="bottom: 24px !important; right: 24px !important; left: auto !important; top: auto !important;" class="fixed pointer-events-auto max-w-md w-[420px] p-5 rounded-2xl bg-dark-800/98 border border-cyan-500/60 shadow-2xl shadow-cyan-500/25 backdrop-blur-xl transition-all duration-300 z-50">
+    <!-- Floating Tour Guide Dock: Strict bottom-right positioning, zero overlap -->
+    <div id="tourCard" class="fixed bottom-6 right-6 pointer-events-auto max-w-md w-[420px] p-5 rounded-2xl bg-dark-800/98 border border-cyan-500/60 shadow-2xl shadow-cyan-500/25 backdrop-blur-xl transition-all duration-300 z-50">
       <div class="flex items-center justify-between border-b border-dark-700/80 pb-3 mb-3">
         <div class="flex items-center space-x-2">
           <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse"></span>
@@ -602,19 +612,26 @@ body {
   left: auto !important;
   top: auto !important;
   transform: none !important;
+  margin: 0 !important;
 }
 """
 
-# 4. Build app.js
+# 4. Read core app.js without old tour handlers
 with open("backend/static/app.js", "r", encoding="utf-8") as f:
-    orig_app = f.read()
+    raw_js = f.read()
 
-# Make sure DEFAULT_NODES and DEFAULT_EDGES are at top
-if "const DEFAULT_NODES" not in orig_app:
-    orig_app = f"const DEFAULT_NODES = {json.dumps(mock_nodes, indent=2)};\nconst DEFAULT_EDGES = {json.dumps(mock_edges, indent=2)};\n\n" + orig_app
+# Strip any previous walkthrough code
+if "// ==========================================\n// 8. INTERACTIVE GUIDED WALKTHROUGH" in raw_js:
+    raw_js = raw_js.split("// ==========================================\n// 8. INTERACTIVE GUIDED WALKTHROUGH")[0].strip()
+elif "function startWalkthrough()" in raw_js:
+    raw_js = raw_js.split("function startWalkthrough()")[0].strip()
 
-# Add Walkthrough logic at the end if not present
-tour_code = """
+# Make sure DEFAULT_NODES and DEFAULT_EDGES are present
+if "const DEFAULT_NODES" not in raw_js:
+    raw_js = f"const DEFAULT_NODES = {json.dumps(mock_nodes, indent=2)};\nconst DEFAULT_EDGES = {json.dumps(mock_edges, indent=2)};\n\n" + raw_js
+
+# Append clean Walkthrough logic with ZERO dynamic positioning (always fixed bottom-right dock)
+tour_logic = """
 // ==========================================
 // 8. INTERACTIVE GUIDED WALKTHROUGH
 // ==========================================
@@ -706,6 +723,17 @@ function renderTourStep() {
   const prevBtn = document.getElementById("tourPrevBtn");
   const nextBtn = document.getElementById("tourNextBtn");
   const dotsContainer = document.getElementById("tourDots");
+  const card = document.getElementById("tourCard");
+
+  // Keep card strictly pinned to bottom-right
+  if (card) {
+    card.style.position = "fixed";
+    card.style.bottom = "24px";
+    card.style.right = "24px";
+    card.style.left = "auto";
+    card.style.top = "auto";
+    card.style.transform = "none";
+  }
 
   if (badge) badge.innerText = `Step ${currentTourIndex + 1} of ${tourSteps.length}`;
   if (title) title.innerText = step.title;
@@ -723,7 +751,6 @@ function renderTourStep() {
   const targetEl = document.getElementById(step.targetId);
   if (targetEl) {
     targetEl.classList.add("tour-highlight");
-    targetEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 
   if (window.lucide) lucide.createIcons();
@@ -747,8 +774,7 @@ function prevTourStep() {
 }
 """
 
-if "function startWalkthrough()" not in orig_app:
-    orig_app += "\n" + tour_code
+FINAL_JS = raw_js + "\n\n" + tour_logic
 
 # 5. Write to all paths
 paths = ["backend/static", "public", "public/static", "."]
@@ -759,6 +785,6 @@ for folder in paths:
     with open(os.path.join(folder, "style.css"), "w", encoding="utf-8") as f:
         f.write(STYLE_CSS)
     with open(os.path.join(folder, "app.js"), "w", encoding="utf-8") as f:
-        f.write(orig_app)
+        f.write(FINAL_JS)
 
-print("Full app synchronized successfully with fixed bottom-right dock walkthrough!")
+print("Full application rebuilt with clean bottom-right fixed dock and 'Made by Robin' footer!")
