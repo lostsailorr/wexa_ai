@@ -1,23 +1,30 @@
 import os
-import json
 
 # 1. Update index.html
 with open("backend/static/index.html", "r", encoding="utf-8") as f:
     html = f.read()
 
 # Add ID to stats ribbon if missing
-html = html.replace(
-    '<div class="bg-dark-800/40 border-b border-dark-700/60 px-6 py-2.5 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4 text-xs">',
-    '<div id="statsRibbon" class="bg-dark-800/40 border-b border-dark-700/60 px-6 py-2.5 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4 text-xs">'
-)
+if 'id="statsRibbon"' not in html:
+    html = html.replace(
+        '<div class="bg-dark-800/40 border-b border-dark-700/60 px-6 py-2.5 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4 text-xs">',
+        '<div id="statsRibbon" class="bg-dark-800/40 border-b border-dark-700/60 px-6 py-2.5 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4 text-xs">'
+    )
 
 # Add ID to graph canvas container if missing
-html = html.replace(
-    '<div class="relative flex-1 bg-dark-900 overflow-hidden flex flex-col">',
-    '<div id="graphCanvasContainer" class="relative flex-1 bg-dark-900 overflow-hidden flex flex-col">'
-)
+if 'id="graphCanvasContainer"' not in html:
+    html = html.replace(
+        '<div class="relative flex-1 bg-dark-900 overflow-hidden flex flex-col">',
+        '<div id="graphCanvasContainer" class="relative flex-1 bg-dark-900 overflow-hidden flex flex-col">'
+    )
 
-# Add Walkthrough button in header before Seed CognoDB button
+# Remove any old walkthroughOverlay if exists
+if '<div id="walkthroughOverlay"' in html:
+    parts = html.split('<div id="walkthroughOverlay"')
+    rest = parts[1].split('</body>')
+    html = parts[0] + '</body>' + rest[1]
+
+# Add Walkthrough button in header before Seed CognoDB button if not present
 walkthrough_btn = '''      <!-- Walkthrough Tour Button -->
       <button 
         id="btnStartWalkthrough" 
@@ -25,7 +32,7 @@ walkthrough_btn = '''      <!-- Walkthrough Tour Button -->
         title="Start Interactive App Walkthrough"
         class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-cyan-500/20 via-indigo-500/20 to-emerald-500/20 hover:from-cyan-500/30 hover:to-emerald-500/30 border border-cyan-500/40 text-cyan-300 text-xs font-bold transition-all hover:scale-[1.03] active:scale-[0.98] shadow-lg shadow-cyan-500/10"
       >
-        <i data-lucide="compass" class="w-3.5 h-3.5 text-cyan-400 animate-spin-slow"></i>
+        <i data-lucide="compass" class="w-3.5 h-3.5 text-cyan-400"></i>
         <span>Walkthrough</span>
       </button>
 
@@ -34,19 +41,24 @@ walkthrough_btn = '''      <!-- Walkthrough Tour Button -->
 if "btnStartWalkthrough" not in html:
     html = html.replace('<!-- Seed Database Button -->', walkthrough_btn + '      <!-- Seed Database Button -->')
 
-# Add Walkthrough Modal Overlay before </body>
+# Add Polished Walkthrough Dock Modal (Bottom-Right Non-Overlapping)
 tour_modal = '''
-  <!-- GUIDED WALKTHROUGH OVERLAY & SPOTLIGHT -->
-  <div id="walkthroughOverlay" class="hidden fixed inset-0 z-50 transition-all duration-300">
-    <div id="tourBackdrop" onclick="stopWalkthrough()" class="absolute inset-0 bg-dark-900/75 backdrop-blur-sm cursor-pointer"></div>
+  <!-- GUIDED WALKTHROUGH OVERLAY & FLOATING DOCK -->
+  <div id="walkthroughOverlay" class="hidden fixed inset-0 z-50 pointer-events-none transition-all duration-300">
+    <div id="tourBackdrop" onclick="stopWalkthrough()" class="absolute inset-0 bg-dark-900/35 backdrop-blur-[2px] pointer-events-auto cursor-pointer"></div>
     
-    <div id="tourCard" class="fixed max-w-md w-[380px] sm:w-[420px] p-5 rounded-2xl bg-dark-800/95 border border-cyan-500/50 shadow-2xl shadow-cyan-500/20 backdrop-blur-xl transition-all duration-300 z-50">
+    <!-- Floating Bottom-Right Tour Guide Dock (Guaranteed Zero Overlap) -->
+    <div id="tourCard" class="fixed bottom-6 right-6 pointer-events-auto max-w-md w-[420px] p-5 rounded-2xl bg-dark-800/95 border border-cyan-500/50 shadow-2xl shadow-cyan-500/20 backdrop-blur-xl transition-all duration-300 z-50">
       <div class="flex items-center justify-between border-b border-dark-700/80 pb-3 mb-3">
         <div class="flex items-center space-x-2">
           <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse"></span>
-          <span id="tourStepBadge" class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">Step 1 of 8</span>
+          <span id="tourStepBadge" class="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">Step 1 of 8</span>
         </div>
-        <button onclick="stopWalkthrough()" class="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-dark-700 transition-colors">
+        
+        <!-- Step Progress Dots -->
+        <div id="tourDots" class="flex items-center space-x-1"></div>
+
+        <button onclick="stopWalkthrough()" title="Close Walkthrough" class="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-dark-700 transition-colors">
           <i data-lucide="x" class="w-4 h-4"></i>
         </button>
       </div>
@@ -77,38 +89,35 @@ tour_modal = '''
   </div>
 '''
 
-if "walkthroughOverlay" not in html:
-    html = html.replace('</body>', tour_modal + '\n</body>')
+html = html.replace('</body>', tour_modal + '\n</body>')
 
 # 2. Update style.css
 with open("backend/static/style.css", "r", encoding="utf-8") as f:
     css = f.read()
 
+# Remove previous tour-highlight if present
+if ".tour-highlight" in css:
+    css = css.split("/* Tour Highlight")[0]
+
 tour_css = '''
 /* Tour Highlight & Spotlight Effects */
 .tour-highlight {
   position: relative !important;
-  z-index: 52 !important;
-  box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.8), 0 0 30px rgba(6, 182, 212, 0.4) !important;
+  z-index: 51 !important;
+  box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.8), 0 0 25px rgba(6, 182, 212, 0.4) !important;
   border-color: rgba(6, 182, 212, 0.9) !important;
-}
-
-.animate-spin-slow {
-  animation: spin 8s linear infinite;
-}
-
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
 }
 '''
 
-if "tour-highlight" not in css:
-    css += tour_css
+css = css.strip() + "\n" + tour_css
 
 # 3. Update app.js
 with open("backend/static/app.js", "r", encoding="utf-8") as f:
     js = f.read()
+
+# Remove previous walkthrough js if present
+if "function startWalkthrough()" in js:
+    js = js.split("// ==========================================\n// 8. INTERACTIVE GUIDED WALKTHROUGH")[0]
 
 tour_js = '''
 // ==========================================
@@ -118,7 +127,7 @@ let currentTourIndex = 0;
 const tourSteps = [
   {
     targetId: "statsRibbon",
-    title: "📊 Live Network Topology Metrics",
+    title: "📊 Live Network Topology Telemetry",
     desc: "SentinelGraph continuously monitors network telemetry: 10 Persons, 11 Companies, 13 Bank Accounts, and 49 Relationships with live risk scores.",
     action: () => switchTab("explorer")
   },
@@ -134,19 +143,19 @@ const tourSteps = [
   {
     targetId: "globalSearchInput",
     title: "🔍 Instant Entity Search & Autocomplete",
-    desc: "Debounced live search across all persons, offshore shell corporations, accounts, and sanctions watchlists with instant canvas refocusing.",
+    desc: "Debounced live search across all suspect persons, offshore holding entities, bank account numbers, and sanction watchlists with instant camera focusing.",
     action: () => switchTab("explorer")
   },
   {
     targetId: "tab-rings",
     title: "🔄 Multi-Hop Smurfing Ring Detection",
-    desc: "Uncovers circular money laundering loops (3 to 6 hops deep) where capital routes through multi-jurisdiction intermediaries and returns to the originator.",
+    desc: "Uncovers obfuscated circular money laundering loops (3 to 6 hops deep) where capital routes through multi-jurisdiction intermediaries and returns to the originator.",
     action: () => switchTab("rings")
   },
   {
     targetId: "tab-ubo",
     title: "🏢 Recursive Ultimate Beneficial Ownership (UBO)",
-    desc: "Traverses up to 8 hops deep across offshore shell holding chains (BVI, Cyprus, Panama) and computes cumulative effective ownership math with Cypher reduce().",
+    desc: "Traverses up to 8 hops deep across complex offshore shell holding chains (BVI, Cyprus, Panama) and computes cumulative effective ownership math using Cypher reduce().",
     action: () => {
       switchTab("ubo");
       resolveUBO();
@@ -201,7 +210,7 @@ function renderTourStep() {
   const desc = document.getElementById("tourDescription");
   const prevBtn = document.getElementById("tourPrevBtn");
   const nextBtn = document.getElementById("tourNextBtn");
-  const card = document.getElementById("tourCard");
+  const dotsContainer = document.getElementById("tourDots");
 
   if (badge) badge.innerText = `Step ${currentTourIndex + 1} of ${tourSteps.length}`;
   if (title) title.innerText = step.title;
@@ -210,28 +219,17 @@ function renderTourStep() {
   if (prevBtn) prevBtn.style.visibility = currentTourIndex === 0 ? "hidden" : "visible";
   if (nextBtn) nextBtn.innerText = currentTourIndex === tourSteps.length - 1 ? "Finish Tour 🎉" : "Next →";
 
+  // Render progress dots
+  if (dotsContainer) {
+    dotsContainer.innerHTML = tourSteps.map((_, i) => `
+      <span class="w-1.5 h-1.5 rounded-full transition-all ${i === currentTourIndex ? 'bg-cyan-400 w-3' : 'bg-dark-600'}"></span>
+    `).join('');
+  }
+
   const targetEl = document.getElementById(step.targetId);
-  if (targetEl && card) {
+  if (targetEl) {
     targetEl.classList.add("tour-highlight");
-    const rect = targetEl.getBoundingClientRect();
-    
-    let top = rect.bottom + 16;
-    let left = rect.left;
-
-    if (top + 240 > window.innerHeight) {
-      top = Math.max(20, rect.top - 240);
-    }
-    if (left + 420 > window.innerWidth) {
-      left = Math.max(20, window.innerWidth - 440);
-    }
-    if (left < 20) left = 20;
-
-    card.style.top = `${top}px`;
-    card.style.left = `${left}px`;
-  } else if (card) {
-    card.style.top = "50%";
-    card.style.left = "50%";
-    card.style.transform = "translate(-50%, -50%)";
+    targetEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 
   if (window.lucide) lucide.createIcons();
@@ -255,8 +253,7 @@ function prevTourStep() {
 }
 '''
 
-if "startWalkthrough" not in js:
-    js += tour_js
+js = js.strip() + "\n" + tour_js
 
 # Write updated files across backend/static, public, and root
 for folder in ["backend/static", "public", "public/static", "."]:
@@ -268,4 +265,4 @@ for folder in ["backend/static", "public", "public/static", "."]:
     with open(os.path.join(folder, "app.js"), "w", encoding="utf-8") as f:
         f.write(js)
 
-print("Walkthrough button, tour overlay, CSS, and JS successfully injected!")
+print("Walkthrough floating dock and zero-overlap styling successfully updated!")

@@ -1,4 +1,17 @@
-<!DOCTYPE html>
+import os
+import json
+
+# 1. Load mock data
+with open("backend/app/services/mock_data.py", "r", encoding="utf-8") as f:
+    text = f.read()
+
+loc = {}
+exec(text, {}, loc)
+mock_nodes = loc["MOCK_NODES"]
+mock_edges = loc["MOCK_EDGES"]
+
+# 2. Build index.html
+INDEX_HTML = """<!DOCTYPE html>
 <html lang="en" class="dark">
 <head>
   <meta charset="UTF-8">
@@ -500,3 +513,252 @@
   <script src="/static/app.js"></script>
 </body>
 </html>
+"""
+
+# 3. Build style.css
+STYLE_CSS = """/* Custom styles & animations for SentinelGraph */
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0c1322;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1d2a4a;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #2b3d68;
+}
+
+/* Tab button active state */
+.tab-btn.active {
+  background: rgba(6, 182, 212, 0.12);
+  color: #22d3ee;
+  border-left: 3px solid #06b6d4;
+}
+
+/* Vis.js Network Canvas Container */
+#graphCanvas {
+  outline: none;
+  cursor: grab;
+}
+
+#graphCanvas:active {
+  cursor: grabbing;
+}
+
+/* Glow effects */
+.glow-cyan {
+  box-shadow: 0 0 15px rgba(6, 182, 212, 0.35);
+}
+
+.glow-crimson {
+  box-shadow: 0 0 15px rgba(239, 68, 68, 0.35);
+}
+
+.glow-emerald {
+  box-shadow: 0 0 15px rgba(16, 185, 129, 0.35);
+}
+
+/* Card hover animation */
+.intel-card {
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.intel-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(6, 182, 212, 0.4);
+  box-shadow: 0 8px 20px -4px rgba(0, 0, 0, 0.5);
+}
+
+/* Tour Highlight & Spotlight Effects */
+.tour-highlight {
+  position: relative !important;
+  z-index: 51 !important;
+  box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.8), 0 0 25px rgba(6, 182, 212, 0.4) !important;
+  border-color: rgba(6, 182, 212, 0.9) !important;
+}
+
+#tourCard {
+  position: fixed !important;
+  bottom: 24px !important;
+  right: 24px !important;
+  left: auto !important;
+  top: auto !important;
+  transform: none !important;
+}
+"""
+
+# 4. Build app.js
+with open("backend/static/app.js", "r", encoding="utf-8") as f:
+    orig_app = f.read()
+
+# Make sure DEFAULT_NODES and DEFAULT_EDGES are at top
+if "const DEFAULT_NODES" not in orig_app:
+    orig_app = f"const DEFAULT_NODES = {json.dumps(mock_nodes, indent=2)};\nconst DEFAULT_EDGES = {json.dumps(mock_edges, indent=2)};\n\n" + orig_app
+
+# Add Walkthrough logic at the end if not present
+tour_code = """
+// ==========================================
+// 8. INTERACTIVE GUIDED WALKTHROUGH
+// ==========================================
+let currentTourIndex = 0;
+const tourSteps = [
+  {
+    targetId: "statsRibbon",
+    title: "📊 Live Network Telemetry",
+    desc: "SentinelGraph aggregates high-level telemetry across your entire graph database: 10 Persons, 11 Companies, 13 Bank Accounts, and 49 Relationships with live risk indicators.",
+    action: () => switchTab("explorer")
+  },
+  {
+    targetId: "graphCanvasContainer",
+    title: "🕸️ Force-Directed Network Canvas",
+    desc: "Interactive Vis.js graph physics simulation. Nodes are color-coded (Cyan=Persons, Orange=Companies, Green=Accounts, Red=Sanctions). Click any node to open its 360° Risk Profile.",
+    action: () => {
+      switchTab("explorer");
+      focusEntityOnCanvas("C-201");
+    }
+  },
+  {
+    targetId: "globalSearchInput",
+    title: "🔍 Instant Entity Search & Autocomplete",
+    desc: "Debounced live search across all suspect persons, offshore holding entities, bank account numbers, and sanction watchlists with instant camera focusing.",
+    action: () => switchTab("explorer")
+  },
+  {
+    targetId: "tab-rings",
+    title: "🔄 Multi-Hop Smurfing Ring Detection",
+    desc: "Uncovers obfuscated circular money laundering loops (3 to 6 hops deep) where capital routes through multi-jurisdiction intermediaries and returns to the originator.",
+    action: () => switchTab("rings")
+  },
+  {
+    targetId: "tab-ubo",
+    title: "🏢 Recursive Ultimate Beneficial Ownership (UBO)",
+    desc: "Traverses up to 8 hops deep across complex offshore shell holding chains (BVI, Cyprus, Panama) and computes cumulative effective ownership math using Cypher reduce().",
+    action: () => {
+      switchTab("ubo");
+      resolveUBO();
+    }
+  },
+  {
+    targetId: "tab-sanctions",
+    title: "🛡️ Shortest Path to Sanction Lists",
+    desc: "Calculates the shortest relationship corridor connecting any suspect entity directly to OFAC SDN and EU watchlists in milliseconds.",
+    action: () => {
+      switchTab("sanctions");
+      traceSanctionPath();
+    }
+  },
+  {
+    targetId: "tab-mules",
+    title: "⚡ Mule Transit Hub & Centrality Detection",
+    desc: "Identifies transit hub accounts exhibiting high transaction velocity, multiple incoming deposits, and rapid outgoing dispersal.",
+    action: () => switchTab("mules")
+  },
+  {
+    targetId: "tab-cypher",
+    title: "💻 Live openCypher Query Console",
+    desc: "Interactive Cypher playground for compliance investigators. Run custom or preset openCypher queries directly against CognoDB Cloud with live execution timing.",
+    action: () => switchTab("cypher")
+  }
+];
+
+function startWalkthrough() {
+  currentTourIndex = 0;
+  const overlay = document.getElementById("walkthroughOverlay");
+  if (overlay) overlay.classList.remove("hidden");
+  renderTourStep();
+}
+
+function stopWalkthrough() {
+  const overlay = document.getElementById("walkthroughOverlay");
+  if (overlay) overlay.classList.add("hidden");
+  document.querySelectorAll(".tour-highlight").forEach(el => el.classList.remove("tour-highlight"));
+}
+
+function renderTourStep() {
+  document.querySelectorAll(".tour-highlight").forEach(el => el.classList.remove("tour-highlight"));
+
+  const step = tourSteps[currentTourIndex];
+  if (!step) return;
+
+  if (step.action) step.action();
+
+  const badge = document.getElementById("tourStepBadge");
+  const title = document.getElementById("tourTitle");
+  const desc = document.getElementById("tourDescription");
+  const prevBtn = document.getElementById("tourPrevBtn");
+  const nextBtn = document.getElementById("tourNextBtn");
+  const dotsContainer = document.getElementById("tourDots");
+
+  if (badge) badge.innerText = `Step ${currentTourIndex + 1} of ${tourSteps.length}`;
+  if (title) title.innerText = step.title;
+  if (desc) desc.innerText = step.desc;
+
+  if (prevBtn) prevBtn.style.visibility = currentTourIndex === 0 ? "hidden" : "visible";
+  if (nextBtn) nextBtn.innerText = currentTourIndex === tourSteps.length - 1 ? "Finish Tour 🎉" : "Next →";
+
+  if (dotsContainer) {
+    dotsContainer.innerHTML = tourSteps.map((_, i) => `
+      <span class="w-1.5 h-1.5 rounded-full transition-all ${i === currentTourIndex ? 'bg-cyan-400 w-3' : 'bg-dark-600'}"></span>
+    `).join('');
+  }
+
+  const targetEl = document.getElementById(step.targetId);
+  if (targetEl) {
+    targetEl.classList.add("tour-highlight");
+    targetEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  if (window.lucide) lucide.createIcons();
+}
+
+function nextTourStep() {
+  if (currentTourIndex < tourSteps.length - 1) {
+    currentTourIndex++;
+    renderTourStep();
+  } else {
+    stopWalkthrough();
+    showToast("Walkthrough completed! Explore the graph freely.");
+  }
+}
+
+function prevTourStep() {
+  if (currentTourIndex > 0) {
+    currentTourIndex--;
+    renderTourStep();
+  }
+}
+"""
+
+if "function startWalkthrough()" not in orig_app:
+    orig_app += "\n" + tour_code
+
+# 5. Write to all paths
+paths = ["backend/static", "public", "public/static", "."]
+for folder in paths:
+    os.makedirs(folder, exist_ok=True)
+    with open(os.path.join(folder, "index.html"), "w", encoding="utf-8") as f:
+        f.write(INDEX_HTML)
+    with open(os.path.join(folder, "style.css"), "w", encoding="utf-8") as f:
+        f.write(STYLE_CSS)
+    with open(os.path.join(folder, "app.js"), "w", encoding="utf-8") as f:
+        f.write(orig_app)
+
+print("Full app synchronized successfully with fixed bottom-right dock walkthrough!")

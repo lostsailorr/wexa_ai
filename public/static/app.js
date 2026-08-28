@@ -1773,7 +1773,7 @@ let currentTourIndex = 0;
 const tourSteps = [
   {
     targetId: "statsRibbon",
-    title: "📊 Live Network Topology Metrics",
+    title: "📊 Live Network Topology Telemetry",
     desc: "SentinelGraph continuously monitors network telemetry: 10 Persons, 11 Companies, 13 Bank Accounts, and 49 Relationships with live risk scores.",
     action: () => switchTab("explorer")
   },
@@ -1789,19 +1789,19 @@ const tourSteps = [
   {
     targetId: "globalSearchInput",
     title: "🔍 Instant Entity Search & Autocomplete",
-    desc: "Debounced live search across all persons, offshore shell corporations, accounts, and sanctions watchlists with instant canvas refocusing.",
+    desc: "Debounced live search across all suspect persons, offshore holding entities, bank account numbers, and sanction watchlists with instant camera focusing.",
     action: () => switchTab("explorer")
   },
   {
     targetId: "tab-rings",
     title: "🔄 Multi-Hop Smurfing Ring Detection",
-    desc: "Uncovers circular money laundering loops (3 to 6 hops deep) where capital routes through multi-jurisdiction intermediaries and returns to the originator.",
+    desc: "Uncovers obfuscated circular money laundering loops (3 to 6 hops deep) where capital routes through multi-jurisdiction intermediaries and returns to the originator.",
     action: () => switchTab("rings")
   },
   {
     targetId: "tab-ubo",
     title: "🏢 Recursive Ultimate Beneficial Ownership (UBO)",
-    desc: "Traverses up to 8 hops deep across offshore shell holding chains (BVI, Cyprus, Panama) and computes cumulative effective ownership math with Cypher reduce().",
+    desc: "Traverses up to 8 hops deep across complex offshore shell holding chains (BVI, Cyprus, Panama) and computes cumulative effective ownership math using Cypher reduce().",
     action: () => {
       switchTab("ubo");
       resolveUBO();
@@ -1856,7 +1856,7 @@ function renderTourStep() {
   const desc = document.getElementById("tourDescription");
   const prevBtn = document.getElementById("tourPrevBtn");
   const nextBtn = document.getElementById("tourNextBtn");
-  const card = document.getElementById("tourCard");
+  const dotsContainer = document.getElementById("tourDots");
 
   if (badge) badge.innerText = `Step ${currentTourIndex + 1} of ${tourSteps.length}`;
   if (title) title.innerText = step.title;
@@ -1865,28 +1865,17 @@ function renderTourStep() {
   if (prevBtn) prevBtn.style.visibility = currentTourIndex === 0 ? "hidden" : "visible";
   if (nextBtn) nextBtn.innerText = currentTourIndex === tourSteps.length - 1 ? "Finish Tour 🎉" : "Next →";
 
+  // Render progress dots
+  if (dotsContainer) {
+    dotsContainer.innerHTML = tourSteps.map((_, i) => `
+      <span class="w-1.5 h-1.5 rounded-full transition-all ${i === currentTourIndex ? 'bg-cyan-400 w-3' : 'bg-dark-600'}"></span>
+    `).join('');
+  }
+
   const targetEl = document.getElementById(step.targetId);
-  if (targetEl && card) {
+  if (targetEl) {
     targetEl.classList.add("tour-highlight");
-    const rect = targetEl.getBoundingClientRect();
-    
-    let top = rect.bottom + 16;
-    let left = rect.left;
-
-    if (top + 240 > window.innerHeight) {
-      top = Math.max(20, rect.top - 240);
-    }
-    if (left + 420 > window.innerWidth) {
-      left = Math.max(20, window.innerWidth - 440);
-    }
-    if (left < 20) left = 20;
-
-    card.style.top = `${top}px`;
-    card.style.left = `${left}px`;
-  } else if (card) {
-    card.style.top = "50%";
-    card.style.left = "50%";
-    card.style.transform = "translate(-50%, -50%)";
+    targetEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 
   if (window.lucide) lucide.createIcons();
