@@ -1,0 +1,70 @@
+/* Custom styles & animations for SentinelGraph */
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0c1322;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1d2a4a;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #2b3d68;
+}
+
+/* Tab button active state */
+.tab-btn.active {
+  background: rgba(6, 182, 212, 0.12);
+  color: #22d3ee;
+  border-left: 3px solid #06b6d4;
+}
+
+/* Vis.js Network Canvas Container */
+#graphCanvas {
+  outline: none;
+  cursor: grab;
+}
+
+#graphCanvas:active {
+  cursor: grabbing;
+}
+
+/* Glow effects */
+.glow-cyan {
+  box-shadow: 0 0 15px rgba(6, 182, 212, 0.35);
+}
+
+.glow-crimson {
+  box-shadow: 0 0 15px rgba(239, 68, 68, 0.35);
+}
+
+.glow-emerald {
+  box-shadow: 0 0 15px rgba(16, 185, 129, 0.35);
+}
+
+/* Card hover animation */
+.intel-card {
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.intel-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(6, 182, 212, 0.4);
+  box-shadow: 0 8px 20px -4px rgba(0, 0, 0, 0.5);
+}
