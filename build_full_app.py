@@ -66,7 +66,6 @@ INDEX_HTML = """<!DOCTYPE html>
   <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <link rel="stylesheet" href="/style.css">
-  <link rel="stylesheet" href="/static/style.css">
 </head>
 <body class="bg-dark-900 text-slate-100 font-sans min-h-screen flex flex-col antialiased selection:bg-cyan-500 selection:text-dark-900 overflow-x-hidden">
 
@@ -520,7 +519,6 @@ INDEX_HTML = """<!DOCTYPE html>
   </div>
 
   <script src="/app.js"></script>
-  <script src="/static/app.js"></script>
 </body>
 </html>
 """
