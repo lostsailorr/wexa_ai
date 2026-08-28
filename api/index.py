@@ -10,3 +10,9 @@ for path in [current_dir, backend_dir, root_dir]:
         sys.path.insert(0, path)
 
 from app.main import app
+
+try:
+    from mangum import Mangum
+    handler = Mangum(app, lifespan="off")
+except Exception:
+    handler = app
