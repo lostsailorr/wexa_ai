@@ -32,8 +32,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
-    description="Anti-Money Laundering (AML), Sanctions Evasion & UBO Graph Intelligence Platform backed by CognoDB Cloud.",
-    lifespan=lifespan
+    description="Anti-Money Laundering (AML), Sanctions Evasion & UBO Graph Intelligence Platform backed by CognoDB Cloud."
 )
 
 # CORS Middleware
