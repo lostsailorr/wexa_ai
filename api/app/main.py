@@ -50,6 +50,15 @@ app.include_router(analytics.router)
 app.include_router(search.router)
 app.include_router(admin.router)
 
+@app.get("/api/health")
+def api_health_check():
+    return {"status": "healthy", "service": settings.APP_NAME}
+
+@app.get("/api")
+def api_root_check():
+    return {"status": "healthy", "service": settings.APP_NAME}
+
+
 # Mount Static Files (Frontend)
 static_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../static"))
 if os.path.exists(static_dir):
