@@ -1765,3 +1765,146 @@ function exportGraphImage() {
     showToast("Graph canvas exported as image.");
   }
 }
+
+// ==========================================
+// 8. INTERACTIVE GUIDED WALKTHROUGH
+// ==========================================
+let currentTourIndex = 0;
+const tourSteps = [
+  {
+    targetId: "statsRibbon",
+    title: "📊 Live Network Topology Metrics",
+    desc: "SentinelGraph continuously monitors network telemetry: 10 Persons, 11 Companies, 13 Bank Accounts, and 49 Relationships with live risk scores.",
+    action: () => switchTab("explorer")
+  },
+  {
+    targetId: "graphCanvasContainer",
+    title: "🕸️ Force-Directed Network Canvas",
+    desc: "Interactive Vis.js graph physics simulation. Nodes are color-coded (Cyan=Persons, Orange=Companies, Green=Accounts, Red=Sanctions). Click any node to open its 360° Risk Profile.",
+    action: () => {
+      switchTab("explorer");
+      focusEntityOnCanvas("C-201");
+    }
+  },
+  {
+    targetId: "globalSearchInput",
+    title: "🔍 Instant Entity Search & Autocomplete",
+    desc: "Debounced live search across all persons, offshore shell corporations, accounts, and sanctions watchlists with instant canvas refocusing.",
+    action: () => switchTab("explorer")
+  },
+  {
+    targetId: "tab-rings",
+    title: "🔄 Multi-Hop Smurfing Ring Detection",
+    desc: "Uncovers circular money laundering loops (3 to 6 hops deep) where capital routes through multi-jurisdiction intermediaries and returns to the originator.",
+    action: () => switchTab("rings")
+  },
+  {
+    targetId: "tab-ubo",
+    title: "🏢 Recursive Ultimate Beneficial Ownership (UBO)",
+    desc: "Traverses up to 8 hops deep across offshore shell holding chains (BVI, Cyprus, Panama) and computes cumulative effective ownership math with Cypher reduce().",
+    action: () => {
+      switchTab("ubo");
+      resolveUBO();
+    }
+  },
+  {
+    targetId: "tab-sanctions",
+    title: "🛡️ Shortest Path to Sanction Lists",
+    desc: "Calculates the shortest relationship corridor connecting any suspect entity directly to OFAC SDN and EU watchlists in milliseconds.",
+    action: () => {
+      switchTab("sanctions");
+      traceSanctionPath();
+    }
+  },
+  {
+    targetId: "tab-mules",
+    title: "⚡ Mule Transit Hub & Centrality Detection",
+    desc: "Identifies transit hub accounts exhibiting high transaction velocity, multiple incoming deposits, and rapid outgoing dispersal.",
+    action: () => switchTab("mules")
+  },
+  {
+    targetId: "tab-cypher",
+    title: "💻 Live openCypher Query Console",
+    desc: "Interactive Cypher playground for compliance investigators. Run custom or preset openCypher queries directly against CognoDB Cloud with live execution timing.",
+    action: () => switchTab("cypher")
+  }
+];
+
+function startWalkthrough() {
+  currentTourIndex = 0;
+  const overlay = document.getElementById("walkthroughOverlay");
+  if (overlay) overlay.classList.remove("hidden");
+  renderTourStep();
+}
+
+function stopWalkthrough() {
+  const overlay = document.getElementById("walkthroughOverlay");
+  if (overlay) overlay.classList.add("hidden");
+  document.querySelectorAll(".tour-highlight").forEach(el => el.classList.remove("tour-highlight"));
+}
+
+function renderTourStep() {
+  document.querySelectorAll(".tour-highlight").forEach(el => el.classList.remove("tour-highlight"));
+
+  const step = tourSteps[currentTourIndex];
+  if (!step) return;
+
+  if (step.action) step.action();
+
+  const badge = document.getElementById("tourStepBadge");
+  const title = document.getElementById("tourTitle");
+  const desc = document.getElementById("tourDescription");
+  const prevBtn = document.getElementById("tourPrevBtn");
+  const nextBtn = document.getElementById("tourNextBtn");
+  const card = document.getElementById("tourCard");
+
+  if (badge) badge.innerText = `Step ${currentTourIndex + 1} of ${tourSteps.length}`;
+  if (title) title.innerText = step.title;
+  if (desc) desc.innerText = step.desc;
+
+  if (prevBtn) prevBtn.style.visibility = currentTourIndex === 0 ? "hidden" : "visible";
+  if (nextBtn) nextBtn.innerText = currentTourIndex === tourSteps.length - 1 ? "Finish Tour 🎉" : "Next →";
+
+  const targetEl = document.getElementById(step.targetId);
+  if (targetEl && card) {
+    targetEl.classList.add("tour-highlight");
+    const rect = targetEl.getBoundingClientRect();
+    
+    let top = rect.bottom + 16;
+    let left = rect.left;
+
+    if (top + 240 > window.innerHeight) {
+      top = Math.max(20, rect.top - 240);
+    }
+    if (left + 420 > window.innerWidth) {
+      left = Math.max(20, window.innerWidth - 440);
+    }
+    if (left < 20) left = 20;
+
+    card.style.top = `${top}px`;
+    card.style.left = `${left}px`;
+  } else if (card) {
+    card.style.top = "50%";
+    card.style.left = "50%";
+    card.style.transform = "translate(-50%, -50%)";
+  }
+
+  if (window.lucide) lucide.createIcons();
+}
+
+function nextTourStep() {
+  if (currentTourIndex < tourSteps.length - 1) {
+    currentTourIndex++;
+    renderTourStep();
+  } else {
+    stopWalkthrough();
+    showToast("Walkthrough completed! Explore the graph freely.");
+  }
+}
+
+function prevTourStep() {
+  if (currentTourIndex > 0) {
+    currentTourIndex--;
+    renderTourStep();
+  }
+}
