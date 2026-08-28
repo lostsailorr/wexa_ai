@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SentinelGraph | Graph Intelligence & AML Platform</title>
+  <meta name="description" content="Next-Generation Graph Intelligence Platform for Anti-Money Laundering, Sanctions Evasion, and Ultimate Beneficial Ownership Analysis powered by CognoDB Cloud.">
+  
+  <!-- Modern Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS & Lucide Icons & Vis.js -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            dark: {
+              900: '#070b14',
+              800: '#0c1322',
+              700: '#141d33',
+              600: '#1d2a4a',
+              500: '#2b3d68',
+            },
+            crimson: {
+              500: '#ef4444',
+              600: '#dc2626',
+              700: '#b91c1c',
+            },
+            cyan: {
+              400: '#22d3ee',
+              500: '#06b6d4',
+              600: '#0891b2',
+            },
+            emerald: {
+              400: '#34d399',
+              500: '#10b981',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  
+  <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="bg-dark-900 text-slate-100 font-sans min-h-screen flex flex-col antialiased selection:bg-cyan-500 selection:text-dark-900 overflow-x-hidden">
+
+  <!-- TOP NAVIGATION HEADER -->
+  <header class="sticky top-0 z-40 bg-dark-800/80 backdrop-blur-md border-b border-dark-600/60 px-6 py-3.5 flex items-center justify-between transition-all">
+    <div class="flex items-center space-x-4">
+      <div class="flex items-center space-x-3 group cursor-pointer">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-600 via-indigo-600 to-emerald-500 p-0.5 shadow-lg shadow-cyan-500/20 group-hover:shadow-cyan-500/40 transition-all duration-300">
+          <div class="w-full h-full bg-dark-900 rounded-[10px] flex items-center justify-center">
+            <i data-lucide="shield-alert" class="w-5 h-5 text-cyan-400"></i>
+          </div>
+        </div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <h1 class="text-lg font-bold tracking-tight bg-gradient-to-r from-white via-slate-100 to-slate-400 bg-clip-text text-transparent">SENTINEL<span class="text-cyan-400 font-extrabold">GRAPH</span></h1>
+            <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">AML v1.0</span>
+          </div>
+          <p class="text-xs text-slate-400">CognoDB Graph Intelligence Platform</p>
+        </div>
+      </div>
+
+      <!-- Quick Search Input -->
+      <div class="relative hidden md:block w-72 lg:w-96 ml-6">
+        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+          <i data-lucide="search" class="w-4 h-4"></i>
+        </div>
+        <input 
+          type="text" 
+          id="globalSearchInput" 
+          placeholder="Search entities, accounts, persons..." 
+          class="w-full pl-9 pr-4 py-1.5 text-xs rounded-lg bg-dark-700/80 border border-dark-600 text-slate-200 placeholder-slate-400 focus:outline-none focus:border-cyan-500/80 focus:ring-1 focus:ring-cyan-500/80 transition-all"
+        >
+        <div id="searchResultsDropdown" class="hidden absolute left-0 right-0 top-full mt-1.5 bg-dark-800 border border-dark-600 rounded-lg shadow-2xl z-50 max-h-72 overflow-y-auto divide-y divide-dark-700/60"></div>
+      </div>
+    </div>
+
+    <!-- Right Header Tools -->
+    <div class="flex items-center space-x-3">
+      <!-- Database Connection Status Badge -->
+      <div id="dbStatusBadge" class="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-dark-700 border border-dark-600 text-xs text-slate-300">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span id="dbStatusText" class="font-medium">Connecting...</span>
+      </div>
+
+      <!-- Seed Database Button -->
+      <button 
+        id="btnSeedDb" 
+        onclick="triggerSeed()" 
+        title="Seed realistic crime syndicate dataset into CognoDB"
+        class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 text-xs font-semibold transition-all hover:scale-[1.02] active:scale-[0.98]"
+      >
+        <i data-lucide="database" class="w-3.5 h-3.5"></i>
+        <span>Seed CognoDB</span>
+      </button>
+
+      <!-- Refresh Graph Button -->
+      <button 
+        onclick="loadInitialGraph()" 
+        title="Reload live graph data"
+        class="p-2 rounded-lg bg-dark-700 hover:bg-dark-600 border border-dark-600 text-slate-300 hover:text-white text-xs transition-all"
+      >
+        <i data-lucide="rotate-cw" class="w-4 h-4"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- STATS RIBBON -->
+  <div class="bg-dark-800/40 border-b border-dark-700/60 px-6 py-2.5 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4 text-xs">
+    <div class="flex items-center space-x-3">
+      <div class="p-1.5 rounded bg-blue-500/10 text-blue-400"><i data-lucide="users" class="w-4 h-4"></i></div>
+      <div>
+        <div class="text-[11px] text-slate-400 uppercase font-semibold">Persons</div>
+        <div id="statPersons" class="text-sm font-bold text-slate-100">--</div>
+      </div>
+    </div>
+    <div class="flex items-center space-x-3">
+      <div class="p-1.5 rounded bg-amber-500/10 text-amber-400"><i data-lucide="building-2" class="w-4 h-4"></i></div>
+      <div>
+        <div class="text-[11px] text-slate-400 uppercase font-semibold">Companies</div>
+        <div id="statCompanies" class="text-sm font-bold text-slate-100">--</div>
+      </div>
+    </div>
+    <div class="flex items-center space-x-3">
+      <div class="p-1.5 rounded bg-cyan-500/10 text-cyan-400"><i data-lucide="credit-card" class="w-4 h-4"></i></div>
+      <div>
+        <div class="text-[11px] text-slate-400 uppercase font-semibold">Accounts</div>
+        <div id="statAccounts" class="text-sm font-bold text-slate-100">--</div>
+      </div>
+    </div>
+    <div class="flex items-center space-x-3">
+      <div class="p-1.5 rounded bg-emerald-500/10 text-emerald-400"><i data-lucide="arrow-left-right" class="w-4 h-4"></i></div>
+      <div>
+        <div class="text-[11px] text-slate-400 uppercase font-semibold">Transfers</div>
+        <div id="statTransfers" class="text-sm font-bold text-slate-100">--</div>
+      </div>
+    </div>
+    <div class="flex items-center space-x-3">
+      <div class="p-1.5 rounded bg-purple-500/10 text-purple-400"><i data-lucide="network" class="w-4 h-4"></i></div>
+      <div>
+        <div class="text-[11px] text-slate-400 uppercase font-semibold">Total Edges</div>
+        <div id="statEdges" class="text-sm font-bold text-slate-100">--</div>
+      </div>
+    </div>
+    <div class="flex items-center space-x-3">
+      <div class="p-1.5 rounded bg-crimson-500/10 text-crimson-500"><i data-lucide="alert-octagon" class="w-4 h-4"></i></div>
+      <div>
+        <div class="text-[11px] text-slate-400 uppercase font-semibold">Sanctions / PEP</div>
+        <div id="statSanctions" class="text-sm font-bold text-crimson-500">Active</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN APPLICATION CONTENT LAYOUT -->
+  <div class="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
+
+    <!-- LEFT SIDEBAR / TAB NAVIGATION -->
+    <aside class="w-full lg:w-64 bg-dark-800/60 border-r border-dark-700/60 flex flex-col p-4 space-y-4 shrink-0">
+      <div>
+        <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 px-2">Intelligence Modules</div>
+        <nav class="space-y-1" id="navTabs">
+          <button 
+            onclick="switchTab('explorer')" 
+            id="tab-explorer"
+            class="tab-btn active w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition-all text-slate-200 hover:bg-dark-700/80"
+          >
+            <i data-lucide="globe" class="w-4 h-4 text-cyan-400"></i>
+            <span>Graph Explorer</span>
+          </button>
+          
+          <button 
+            onclick="switchTab('rings')" 
+            id="tab-rings"
+            class="tab-btn w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition-all text-slate-400 hover:text-slate-200 hover:bg-dark-700/80"
+          >
+            <i data-lucide="refresh-cw" class="w-4 h-4 text-amber-400"></i>
+            <span>Smurfing Rings (Cycles)</span>
+            <span class="ml-auto px-1.5 py-0.5 rounded text-[10px] bg-amber-500/20 text-amber-300 font-bold">2</span>
+          </button>
+
+          <button 
+            onclick="switchTab('ubo')" 
+            id="tab-ubo"
+            class="tab-btn w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition-all text-slate-400 hover:text-slate-200 hover:bg-dark-700/80"
+          >
+            <i data-lucide="git-merge" class="w-4 h-4 text-emerald-400"></i>
+            <span>UBO Multi-Tier Chains</span>
+          </button>
+
+          <button 
+            onclick="switchTab('sanctions')" 
+            id="tab-sanctions"
+            class="tab-btn w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition-all text-slate-400 hover:text-slate-200 hover:bg-dark-700/80"
+          >
+            <i data-lucide="shield-ban" class="w-4 h-4 text-crimson-500"></i>
+            <span>Sanctions Path Tracer</span>
+          </button>
+
+          <button 
+            onclick="switchTab('mules')" 
+            id="tab-mules"
+            class="tab-btn w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition-all text-slate-400 hover:text-slate-200 hover:bg-dark-700/80"
+          >
+            <i data-lucide="crosshair" class="w-4 h-4 text-purple-400"></i>
+            <span>Mule Transit Hubs</span>
+          </button>
+
+          <button 
+            onclick="switchTab('cypher')" 
+            id="tab-cypher"
+            class="tab-btn w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition-all text-slate-400 hover:text-slate-200 hover:bg-dark-700/80"
+          >
+            <i data-lucide="terminal" class="w-4 h-4 text-cyan-400"></i>
+            <span>Cypher Playground</span>
+          </button>
+        </nav>
+      </div>
+
+      <!-- FILTER CONTROLS FOR EXPLORER -->
+      <div class="pt-3 border-t border-dark-700/60 flex-1 space-y-3">
+        <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-2">Network Filters</div>
+        
+        <div>
+          <label class="text-[11px] text-slate-400 font-medium block mb-1">Filter by Entity Type</label>
+          <select 
+            id="filterNodeType" 
+            onchange="applyGraphFilters()"
+            class="w-full text-xs bg-dark-700 border border-dark-600 rounded-lg px-2.5 py-1.5 text-slate-200 focus:outline-none focus:border-cyan-500"
+          >
+            <option value="">All Entities (Complete Network)</option>
+            <option value="Person">Persons (PEP & Owners)</option>
+            <option value="Company">Companies (Shells & Funds)</option>
+            <option value="BankAccount">Bank Accounts & Mules</option>
+            <option value="SanctionList">Sanction Watchlists</option>
+          </select>
+        </div>
+
+        <div>
+          <div class="flex justify-between items-center text-[11px] text-slate-400 mb-1">
+            <span>Minimum Risk Score</span>
+            <span id="riskValueLabel" class="text-cyan-400 font-mono font-bold">0.0</span>
+          </div>
+          <input 
+            type="range" 
+            id="filterMinRisk" 
+            min="0.0" 
+            max="1.0" 
+            step="0.05" 
+            value="0.0" 
+            oninput="document.getElementById('riskValueLabel').innerText = this.value; applyGraphFilters();"
+            class="w-full accent-cyan-400 h-1.5 bg-dark-600 rounded-lg cursor-pointer"
+          >
+        </div>
+
+        <div class="pt-2 flex items-center justify-between text-xs">
+          <label class="flex items-center space-x-2 text-slate-400 cursor-pointer">
+            <input type="checkbox" id="physicsToggle" checked onchange="togglePhysics(this.checked)" class="accent-cyan-400 rounded">
+            <span>Physics Layout</span>
+          </label>
+          <button onclick="networkInstance && networkInstance.fit()" class="text-cyan-400 hover:underline text-[11px]">Center View</button>
+        </div>
+      </div>
+
+      <!-- Quick Legend -->
+      <div class="pt-3 border-t border-dark-700/60 text-[11px] space-y-1.5">
+        <div class="font-bold text-slate-400 uppercase tracking-wider mb-1">Legend</div>
+        <div class="flex items-center space-x-2"><span class="w-2.5 h-2.5 rounded-full bg-cyan-400"></span><span class="text-slate-300">Person (PEP / Nominee)</span></div>
+        <div class="flex items-center space-x-2"><span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span><span class="text-slate-300">Company (Shell / Real Estate)</span></div>
+        <div class="flex items-center space-x-2"><span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span><span class="text-slate-300">Bank Account</span></div>
+        <div class="flex items-center space-x-2"><span class="w-2.5 h-2.5 rounded-full bg-crimson-500"></span><span class="text-slate-300">Sanction Entity</span></div>
+      </div>
+    </aside>
+
+    <!-- CENTER / WORKSPACE AREA -->
+    <main class="flex-1 flex flex-col relative overflow-hidden bg-dark-900">
+
+      <!-- VIEW 1: GRAPH EXPLORER CANVAS -->
+      <div id="view-explorer" class="view-panel active flex-1 relative w-full h-full flex flex-col">
+        <!-- Interactive Graph Container -->
+        <div id="graphCanvas" class="w-full flex-1 relative bg-gradient-to-b from-dark-900 to-dark-800"></div>
+
+        <!-- Floating Canvas Action Overlay -->
+        <div class="absolute bottom-4 left-4 z-10 flex items-center space-x-2 bg-dark-800/90 backdrop-blur border border-dark-600/80 px-3 py-2 rounded-xl text-xs shadow-2xl">
+          <span class="text-slate-400">Click any node to open</span>
+          <span class="text-cyan-400 font-semibold">Entity 360° Inspector</span>
+        </div>
+
+        <div class="absolute top-4 right-4 z-10 flex items-center space-x-2">
+          <button 
+            onclick="exportGraphImage()" 
+            class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-dark-800/90 hover:bg-dark-700 border border-dark-600 text-slate-200 text-xs shadow-xl transition-all"
+          >
+            <i data-lucide="download" class="w-3.5 h-3.5"></i>
+            <span>Export Snapshot</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- VIEW 2: SMURFING RINGS (CIRCULAR CYCLES) -->
+      <div id="view-rings" class="view-panel hidden flex-1 p-6 overflow-y-auto space-y-6">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-dark-700 pb-4">
+          <div>
+            <div class="flex items-center space-x-2">
+              <h2 class="text-lg font-bold text-white">Circular Transaction & Smurfing Rings</h2>
+              <span class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 text-xs font-bold font-mono">[:TRANSFERRED_TO*3..6]</span>
+            </div>
+            <p class="text-xs text-slate-400 mt-1">Multi-hop closed cycles where funds cycle through offshore intermediaries back to originating syndicates to obscure provenance.</p>
+          </div>
+          <button onclick="loadCircularRings()" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 text-xs font-semibold transition-all">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+            <span>Re-scan Cycles</span>
+          </button>
+        </div>
+
+        <div id="ringsContainer" class="grid grid-cols-1 gap-4">
+          <!-- Dynamic rings injected here -->
+        </div>
+      </div>
+
+      <!-- VIEW 3: UBO MULTI-TIER CHAINS -->
+      <div id="view-ubo" class="view-panel hidden flex-1 p-6 overflow-y-auto space-y-6">
+        <div class="border-b border-dark-700 pb-4">
+          <div class="flex items-center space-x-2">
+            <h2 class="text-lg font-bold text-white">Ultimate Beneficial Ownership (UBO) Resolver</h2>
+            <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-xs font-bold font-mono">[:OWNS*1..8]</span>
+          </div>
+          <p class="text-xs text-slate-400 mt-1">Recursively traverses nested shell company holding layers calculating cumulative effective percentage stake to unmask controlling persons.</p>
+        </div>
+
+        <div class="bg-dark-800 border border-dark-700 rounded-xl p-4 flex flex-col md:flex-row items-center gap-4">
+          <div class="flex-1 w-full">
+            <label class="text-xs text-slate-400 block mb-1 font-medium">Select Target Asset / Company</label>
+            <select id="uboSelectCompany" class="w-full text-xs bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-emerald-500">
+              <option value="C-208">C-208: Lumina Capital Partners LP (Delaware Commercial Real Estate)</option>
+              <option value="C-211">C-211: Blue Water Real Estate GmbH (German Property Holding)</option>
+              <option value="C-203">C-203: Golden Horizon Logistics Ltd (UK Front Operational)</option>
+            </select>
+          </div>
+          <button onclick="resolveUBO()" class="w-full md:w-auto mt-auto flex items-center justify-center space-x-2 px-4 py-2 rounded-lg bg-emerald-500 text-dark-900 font-bold text-xs hover:bg-emerald-400 transition-all">
+            <i data-lucide="git-merge" class="w-4 h-4"></i>
+            <span>Unravel Ownership</span>
+          </button>
+        </div>
+
+        <div id="uboResultsContainer" class="space-y-4">
+          <!-- UBO results injected here -->
+        </div>
+      </div>
+
+      <!-- VIEW 4: SANCTIONS PATH TRACER -->
+      <div id="view-sanctions" class="view-panel hidden flex-1 p-6 overflow-y-auto space-y-6">
+        <div class="border-b border-dark-700 pb-4">
+          <div class="flex items-center space-x-2">
+            <h2 class="text-lg font-bold text-white">Sanctions & High-Risk Exposure Path Finder</h2>
+            <span class="px-2 py-0.5 rounded bg-crimson-500/20 text-crimson-400 text-xs font-bold font-mono">shortestPath((start)-[*1..6]-(sanctioned))</span>
+          </div>
+          <p class="text-xs text-slate-400 mt-1">Computes the shortest multi-hop graph path from any target person, company, or account to OFAC/EU Sanction Watchlists.</p>
+        </div>
+
+        <div class="bg-dark-800 border border-dark-700 rounded-xl p-4 flex flex-col md:flex-row items-center gap-4">
+          <div class="flex-1 w-full">
+            <label class="text-xs text-slate-400 block mb-1 font-medium">Select Starting Entity</label>
+            <select id="sanctionSelectEntity" class="w-full text-xs bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-crimson-500">
+              <option value="C-208">C-208: Lumina Capital Partners LP (US Real Estate)</option>
+              <option value="P-101">P-101: Viktor Sterling (Oligarch)</option>
+              <option value="ACC-9004">ACC-9004: Barclays Commercial London</option>
+              <option value="C-205">C-205: Vostok Precision Dynamics</option>
+            </select>
+          </div>
+          <button onclick="traceSanctionPath()" class="w-full md:w-auto mt-auto flex items-center justify-center space-x-2 px-4 py-2 rounded-lg bg-crimson-600 text-white font-bold text-xs hover:bg-crimson-500 transition-all">
+            <i data-lucide="shield-alert" class="w-4 h-4"></i>
+            <span>Trace Sanction Connection</span>
+          </button>
+        </div>
+
+        <div id="sanctionPathContainer" class="space-y-4">
+          <!-- Sanction path details injected here -->
+        </div>
+      </div>
+
+      <!-- VIEW 5: MULE TRANSIT HUBS -->
+      <div id="view-mules" class="view-panel hidden flex-1 p-6 overflow-y-auto space-y-6">
+        <div class="border-b border-dark-700 pb-4">
+          <div class="flex items-center space-x-2">
+            <h2 class="text-lg font-bold text-white">Mule Account & High-Centrality Transit Nexus</h2>
+            <span class="px-2 py-0.5 rounded bg-purple-500/20 text-purple-400 text-xs font-bold font-mono">Centrality & Flow In/Out</span>
+          </div>
+          <p class="text-xs text-slate-400 mt-1">Identifies accounts exhibiting bridge characteristics: high in-flow from multiple sources quickly transferred out with minimal retention.</p>
+        </div>
+
+        <div id="mulesContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Mules injected here -->
+        </div>
+      </div>
+
+      <!-- VIEW 6: CYPHER PLAYGROUND -->
+      <div id="view-cypher" class="view-panel hidden flex-1 p-6 overflow-y-auto space-y-4">
+        <div class="border-b border-dark-700 pb-3 flex items-center justify-between">
+          <div>
+            <h2 class="text-lg font-bold text-white flex items-center space-x-2">
+              <i data-lucide="terminal" class="w-5 h-5 text-cyan-400"></i>
+              <span>Live Cypher Query Console</span>
+            </h2>
+            <p class="text-xs text-slate-400">Execute parameterized openCypher directly on CognoDB Cloud over Bolt protocol.</p>
+          </div>
+        </div>
+
+        <!-- Presets Buttons -->
+        <div>
+          <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Preset High-Value Queries:</div>
+          <div class="flex flex-wrap gap-2">
+            <button onclick="setCypherPreset(1)" class="px-2.5 py-1 rounded bg-dark-700 hover:bg-dark-600 border border-dark-600 text-slate-200 text-xs transition-all">
+              1. Detect Smurfing Rings (3-6 Hops)
+            </button>
+            <button onclick="setCypherPreset(2)" class="px-2.5 py-1 rounded bg-dark-700 hover:bg-dark-600 border border-dark-600 text-slate-200 text-xs transition-all">
+              2. Recursive UBO Ownership ([:OWNS*1..8])
+            </button>
+            <button onclick="setCypherPreset(3)" class="px-2.5 py-1 rounded bg-dark-700 hover:bg-dark-600 border border-dark-600 text-slate-200 text-xs transition-all">
+              3. Shortest Path to Sanction List
+            </button>
+            <button onclick="setCypherPreset(4)" class="px-2.5 py-1 rounded bg-dark-700 hover:bg-dark-600 border border-dark-600 text-slate-200 text-xs transition-all">
+              4. High-Risk Shells in Tax Havens
+            </button>
+          </div>
+        </div>
+
+        <!-- Editor & Run -->
+        <div class="bg-dark-800 border border-dark-700 rounded-xl p-3 flex flex-col space-y-3">
+          <textarea 
+            id="cypherInput" 
+            rows="6" 
+            class="w-full font-mono text-xs bg-dark-900/90 text-cyan-300 p-3 rounded-lg border border-dark-700 focus:outline-none focus:border-cyan-500"
+            placeholder="MATCH (n) RETURN n LIMIT 25"
+          ></textarea>
+          <div class="flex items-center justify-between">
+            <div id="cypherExecStats" class="text-xs text-slate-400 font-mono">Ready to execute.</div>
+            <button onclick="runCustomCypher()" class="flex items-center space-x-1.5 px-4 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-dark-900 font-bold text-xs transition-all shadow-lg shadow-cyan-500/20">
+              <i data-lucide="play" class="w-3.5 h-3.5 fill-current"></i>
+              <span>Execute Cypher</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Query Output -->
+        <div class="bg-dark-800 border border-dark-700 rounded-xl p-4">
+          <div class="text-xs font-bold text-slate-300 mb-2">Query Results:</div>
+          <div id="cypherOutput" class="max-h-80 overflow-auto font-mono text-xs text-slate-300 bg-dark-900/80 p-3 rounded-lg border border-dark-700">
+            Click "Execute Cypher" to run query.
+          </div>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- RIGHT SLIDE-OUT: ENTITY 360° INSPECTOR DRAWER -->
+    <div id="entityDrawer" class="hidden w-full lg:w-96 bg-dark-800 border-l border-dark-700/80 flex flex-col p-5 overflow-y-auto shrink-0 transition-all shadow-2xl z-30">
+      <div class="flex items-center justify-between pb-3 border-b border-dark-700">
+        <div class="flex items-center space-x-2">
+          <div id="drawerIcon" class="p-1.5 rounded-lg bg-cyan-500/10 text-cyan-400">
+            <i data-lucide="info" class="w-4 h-4"></i>
+          </div>
+          <h3 class="font-bold text-sm text-white">Entity 360° Inspector</h3>
+        </div>
+        <button onclick="closeDrawer()" class="p-1 rounded text-slate-400 hover:text-white hover:bg-dark-700">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div id="drawerContent" class="space-y-4 pt-4 text-xs">
+        <!-- Dynamic Entity Details injected here -->
+      </div>
+    </div>
+
+  </div>
+
+  <!-- TOAST NOTIFICATION POPUP -->
+  <div id="toast" class="hidden fixed bottom-5 right-5 z-50 px-4 py-3 rounded-xl bg-dark-800 border border-cyan-500/40 text-slate-100 text-xs shadow-2xl flex items-center space-x-2 transition-all transform duration-300">
+    <i data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i>
+    <span id="toastMsg">Action completed</span>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
