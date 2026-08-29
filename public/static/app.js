@@ -2857,58 +2857,38 @@ function prevTourStep() {
 
 
 // ==========================================
-// WELCOME MODAL CONTROLLERS (ROBIN BURDEWA)
+
 // ==========================================
-function openWelcomeModal() {
-  const modal = document.getElementById("welcomeModal");
-  if (modal) {
-    modal.classList.remove("hidden");
-    if (window.lucide) lucide.createIcons();
+// FULL LANDING PAGE CONTROLLER (ROBIN BURDEWA)
+// ==========================================
+function launchApp() {
+  const landing = document.getElementById("landingPage");
+  if (landing) {
+    landing.classList.add("opacity-0", "pointer-events-none");
+    setTimeout(() => {
+      landing.classList.add("hidden");
+      if (networkInstance) {
+        networkInstance.redraw();
+        networkInstance.fit();
+      }
+    }, 400);
   }
 }
 
-function dismissWelcomeModal() {
-  const modal = document.getElementById("welcomeModal");
-  if (modal) modal.classList.add("hidden");
-}
-
-function startWalkthroughFromWelcome() {
-  dismissWelcomeModal();
+function launchAppWithTour() {
+  launchApp();
   setTimeout(() => {
     startWalkthrough();
-  }, 150);
+  }, 450);
 }
 
-
-
-// ==========================================
-// COLLAPSIBLE SIDEBAR CONTROLLER
-// ==========================================
-function toggleSidebar() {
-  const sidebar = document.getElementById("leftSidebar");
-  const collapseIcon = document.querySelector(".sidebar-collapse-icon");
-  if (!sidebar) return;
-
-  const isCollapsed = sidebar.classList.toggle("collapsed");
-  
-  if (collapseIcon) {
-    collapseIcon.setAttribute("data-lucide", isCollapsed ? "panel-left-open" : "panel-left-close");
-    if (window.lucide) lucide.createIcons();
+function showLandingPage() {
+  const landing = document.getElementById("landingPage");
+  if (landing) {
+    landing.classList.remove("hidden");
+    setTimeout(() => {
+      landing.classList.remove("opacity-0", "pointer-events-none");
+      if (window.lucide) lucide.createIcons();
+    }, 20);
   }
-
-  // Smoothly trigger vis.js resize / redraw
-  setTimeout(() => {
-    if (networkInstance) {
-      networkInstance.redraw();
-      networkInstance.fit();
-    }
-  }, 320);
 }
-
-// Global keyboard shortcut Ctrl+B or Cmd+B to toggle sidebar
-document.addEventListener("keydown", (e) => {
-  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "b") {
-    e.preventDefault();
-    toggleSidebar();
-  }
-});
