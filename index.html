@@ -59,6 +59,9 @@
   <!-- TOP NAVIGATION HEADER -->
   <header class="sticky top-0 z-40 bg-dark-800/80 backdrop-blur-md border-b border-dark-600/60 px-6 py-3.5 flex items-center justify-between transition-all">
     <div class="flex items-center space-x-4">
+      <button id="btnHeaderToggleSidebar" onclick="toggleSidebar()" title="Toggle Sidebar (Ctrl+B)" class="p-2 rounded-lg bg-dark-700 hover:bg-dark-600 border border-dark-600 text-slate-300 hover:text-cyan-400 text-xs transition-all flex items-center justify-center">
+        <i data-lucide="panel-left" class="w-4 h-4"></i>
+      </button>
       <div class="flex items-center space-x-3 group cursor-pointer" onclick="switchTab('explorer')">
         <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-600 via-indigo-600 to-emerald-500 p-0.5 shadow-lg shadow-cyan-500/20 group-hover:shadow-cyan-500/40 transition-all duration-300">
           <div class="w-full h-full bg-dark-900 rounded-[10px] flex items-center justify-center">
@@ -190,38 +193,48 @@
   <!-- MAIN APPLICATION LAYOUT -->
   <div class="flex-1 flex overflow-hidden relative">
 
-    <!-- LEFT SIDEBAR: INTELLIGENCE MODULES -->
-    <aside class="w-64 bg-dark-800/60 border-r border-dark-700/60 flex flex-col justify-between p-4 shrink-0 overflow-y-auto">
+    <!-- LEFT SIDEBAR: INTELLIGENCE MODULES & COLLAPSIBLE DRAWER -->
+    <aside id="leftSidebar" class="w-64 bg-dark-800/80 border-r border-dark-700/60 flex flex-col justify-between p-4 shrink-0 overflow-y-auto overflow-x-hidden transition-all duration-300 relative group">
       <div class="space-y-6">
         <div>
-          <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2 px-2">Intelligence Modules</div>
+          <div class="flex items-center justify-between mb-2 px-2">
+            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400 sidebar-text">Intelligence Modules</div>
+            <button 
+              id="btnCollapseSidebar" 
+              onclick="toggleSidebar()" 
+              title="Collapse / Expand Sidebar (Ctrl+B)" 
+              class="p-1 rounded-lg text-slate-400 hover:text-cyan-300 hover:bg-dark-700 transition-colors"
+            >
+              <i data-lucide="panel-left-close" class="w-4 h-4 sidebar-collapse-icon"></i>
+            </button>
+          </div>
           <nav class="space-y-1">
-            <button id="tab-explorer" onclick="switchTab('explorer')" class="tab-btn active w-full flex items-center space-x-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-300 hover:bg-dark-700/60 transition-all text-left">
-              <i data-lucide="globe" class="w-4 h-4"></i>
-              <span>Graph Explorer</span>
+            <button id="tab-explorer" onclick="switchTab('explorer')" data-tooltip="Graph Explorer" class="tab-btn active w-full flex items-center space-x-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-300 hover:bg-dark-700/60 transition-all text-left">
+              <i data-lucide="globe" class="w-4 h-4 shrink-0"></i>
+              <span class="sidebar-text truncate">Graph Explorer</span>
             </button>
-            <button id="tab-rings" onclick="switchTab('rings')" class="tab-btn w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold text-slate-300 hover:bg-dark-700/60 transition-all text-left">
-              <div class="flex items-center space-x-2.5">
-                <i data-lucide="repeat" class="w-4 h-4 text-amber-400"></i>
-                <span>Smurfing Rings (Cycles)</span>
+            <button id="tab-rings" onclick="switchTab('rings')" data-tooltip="Smurfing Rings (Cycles)" class="tab-btn w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold text-slate-300 hover:bg-dark-700/60 transition-all text-left">
+              <div class="flex items-center space-x-2.5 truncate">
+                <i data-lucide="repeat" class="w-4 h-4 text-amber-400 shrink-0"></i>
+                <span class="sidebar-text truncate">Smurfing Rings (Cycles)</span>
               </div>
-              <span class="px-1.5 py-0.5 text-[10px] font-bold rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">2</span>
+              <span class="sidebar-text px-1.5 py-0.5 text-[10px] font-bold rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 shrink-0">2</span>
             </button>
-            <button id="tab-ubo" onclick="switchTab('ubo')" class="tab-btn w-full flex items-center space-x-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-300 hover:bg-dark-700/60 transition-all text-left">
-              <i data-lucide="git-fork" class="w-4 h-4 text-cyan-400"></i>
-              <span>UBO Multi-Tier Chains</span>
+            <button id="tab-ubo" onclick="switchTab('ubo')" data-tooltip="UBO Multi-Tier Chains" class="tab-btn w-full flex items-center space-x-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-300 hover:bg-dark-700/60 transition-all text-left">
+              <i data-lucide="git-fork" class="w-4 h-4 text-cyan-400 shrink-0"></i>
+              <span class="sidebar-text truncate">UBO Multi-Tier Chains</span>
             </button>
-            <button id="tab-sanctions" onclick="switchTab('sanctions')" class="tab-btn w-full flex items-center space-x-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-300 hover:bg-dark-700/60 transition-all text-left">
-              <i data-lucide="shield-alert" class="w-4 h-4 text-crimson-400"></i>
-              <span>Sanctions Path Tracer</span>
+            <button id="tab-sanctions" onclick="switchTab('sanctions')" data-tooltip="Sanctions Path Tracer" class="tab-btn w-full flex items-center space-x-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-300 hover:bg-dark-700/60 transition-all text-left">
+              <i data-lucide="shield-alert" class="w-4 h-4 text-crimson-400 shrink-0"></i>
+              <span class="sidebar-text truncate">Sanctions Path Tracer</span>
             </button>
-            <button id="tab-mules" onclick="switchTab('mules')" class="tab-btn w-full flex items-center space-x-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-300 hover:bg-dark-700/60 transition-all text-left">
-              <i data-lucide="activity" class="w-4 h-4 text-purple-400"></i>
-              <span>Mule Transit Hubs</span>
+            <button id="tab-mules" onclick="switchTab('mules')" data-tooltip="Mule Transit Hubs" class="tab-btn w-full flex items-center space-x-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-300 hover:bg-dark-700/60 transition-all text-left">
+              <i data-lucide="activity" class="w-4 h-4 text-purple-400 shrink-0"></i>
+              <span class="sidebar-text truncate">Mule Transit Hubs</span>
             </button>
-            <button id="tab-cypher" onclick="switchTab('cypher')" class="tab-btn w-full flex items-center space-x-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-300 hover:bg-dark-700/60 transition-all text-left">
-              <i data-lucide="terminal" class="w-4 h-4 text-cyan-400"></i>
-              <span>Cypher Playground</span>
+            <button id="tab-cypher" onclick="switchTab('cypher')" data-tooltip="Cypher Playground" class="tab-btn w-full flex items-center space-x-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-300 hover:bg-dark-700/60 transition-all text-left">
+              <i data-lucide="terminal" class="w-4 h-4 text-cyan-400 shrink-0"></i>
+              <span class="sidebar-text truncate">Cypher Playground</span>
             </button>
           </nav>
         </div>

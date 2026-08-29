@@ -2879,3 +2879,36 @@ function startWalkthroughFromWelcome() {
   }, 150);
 }
 
+
+
+// ==========================================
+// COLLAPSIBLE SIDEBAR CONTROLLER
+// ==========================================
+function toggleSidebar() {
+  const sidebar = document.getElementById("leftSidebar");
+  const collapseIcon = document.querySelector(".sidebar-collapse-icon");
+  if (!sidebar) return;
+
+  const isCollapsed = sidebar.classList.toggle("collapsed");
+  
+  if (collapseIcon) {
+    collapseIcon.setAttribute("data-lucide", isCollapsed ? "panel-left-open" : "panel-left-close");
+    if (window.lucide) lucide.createIcons();
+  }
+
+  // Smoothly trigger vis.js resize / redraw
+  setTimeout(() => {
+    if (networkInstance) {
+      networkInstance.redraw();
+      networkInstance.fit();
+    }
+  }, 320);
+}
+
+// Global keyboard shortcut Ctrl+B or Cmd+B to toggle sidebar
+document.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "b") {
+    e.preventDefault();
+    toggleSidebar();
+  }
+});
