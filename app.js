@@ -2718,12 +2718,12 @@ function showToast(msg, isError = false) {
 }
 
 // ==========================================
-// 12. WALKTHROUGH TOUR ENGINE
+// 12. WALKTHROUGH TOUR ENGINE (SUBTLE 10-15% BLUR, CLEARLY MARKED OPTIONS)
 // ==========================================
 const TOUR_STEPS = [
   {
     tab: "explorer",
-    targetId: "graphCanvasContainer",
+    targetId: "tab-explorer",
     title: "1. Global AML & Sanctions Network Canvas",
     description: "Interactive visual topology of high-risk oligarchs, front companies, offshore accounts, and sanctions watchlists."
   },
@@ -2731,43 +2731,43 @@ const TOUR_STEPS = [
     tab: "explorer",
     targetId: "view-controls",
     title: "2. Graph Filtering & Risk Sliders",
-    description: "Filter by entity classes (e.g., Banks, PEPs, Shells) or dial minimum risk thresholds."
+    description: "Filter by entity classes (e.g., Banks, PEPs, Shells) or dial minimum risk thresholds in real time."
   },
   {
     tab: "rings",
     targetId: "tab-rings",
     title: "3. Smurfing Rings & Circular Laundering",
-    description: "Automated cycle detection scans for layered transaction loops routing money back to source."
+    description: "Automated cycle detection scans for layered transaction loops (3-6 hops) routing money back to source."
   },
   {
     tab: "ubo",
     targetId: "tab-ubo",
     title: "4. Multi-Tier Ultimate Beneficial Ownership (UBO)",
-    description: "Recursively unwinds complex holding company ownership paths to identify controlling PEPs."
+    description: "Recursively unwinds complex holding company ownership paths to identify controlling PEPs and calculate effective ownership %."
   },
   {
     tab: "sanctions",
     targetId: "tab-sanctions",
     title: "5. Sanctions Evasion & Watchlist Tracer",
-    description: "Computes shortest network paths connecting target companies to designated sanctions lists."
+    description: "Computes shortest network paths connecting target companies directly to designated OFAC/EU sanctions lists."
   },
   {
     tab: "mules",
     targetId: "tab-mules",
     title: "6. Mule Transit Hub Centrality",
-    description: "Detects intermediary mule bank accounts with rapid fund pass-through and low retention."
+    description: "Detects intermediary mule bank accounts with rapid fund pass-through, high transaction velocity, and low retention."
   },
   {
     tab: "cypher",
     targetId: "tab-cypher",
     title: "7. Cypher Playground & Console",
-    description: "Direct access to run native Cypher graph queries and export subgraphs."
+    description: "Direct access to run native Cypher graph queries and export subgraphs with live query telemetry."
   },
   {
     tab: "explorer",
     targetId: "btnSeedDb",
     title: "8. Live CognoDB Integration",
-    description: "Powered by CognoDB Cloud graph database for enterprise-grade real-time investigative intelligence."
+    description: "Powered by CognoDB Cloud graph database for enterprise-grade real-time investigative intelligence. Click to seed syndicate data."
   }
 ];
 
@@ -2775,12 +2775,14 @@ let currentTourIndex = 0;
 
 function startWalkthrough() {
   currentTourIndex = 0;
-  document.getElementById("walkthroughOverlay").classList.remove("hidden");
+  const overlay = document.getElementById("walkthroughOverlay");
+  if (overlay) overlay.classList.remove("hidden");
   renderTourStep();
 }
 
 function stopWalkthrough() {
-  document.getElementById("walkthroughOverlay").classList.add("hidden");
+  const overlay = document.getElementById("walkthroughOverlay");
+  if (overlay) overlay.classList.add("hidden");
   document.querySelectorAll(".tour-highlight").forEach((el) => {
     el.classList.remove("tour-highlight", "tour-pulse");
   });
@@ -2788,32 +2790,47 @@ function stopWalkthrough() {
 
 function renderTourStep() {
   const step = TOUR_STEPS[currentTourIndex];
+  if (!step) return;
+
+  // Clear previous highlights
   document.querySelectorAll(".tour-highlight").forEach((el) => {
     el.classList.remove("tour-highlight", "tour-pulse");
   });
 
+  // Switch tab if specified
   if (step.tab) {
     switchTab(step.tab);
   }
 
-  document.getElementById("tourStepBadge").innerText = `Step ${currentTourIndex + 1} of ${TOUR_STEPS.length}`;
-  document.getElementById("tourTitle").innerText = step.title;
-  document.getElementById("tourDescription").innerText = step.description;
-
+  // Update badge and text
+  const badge = document.getElementById("tourStepBadge");
+  const title = document.getElementById("tourTitle");
+  const desc = document.getElementById("tourDescription");
+  const prevBtn = document.getElementById("tourPrevBtn");
+  const nextBtn = document.getElementById("tourNextBtn");
   const dotsContainer = document.getElementById("tourDots");
-  dotsContainer.innerHTML = TOUR_STEPS.map((_, i) => `
-    <span class="w-1.5 h-1.5 rounded-full transition-all ${i === currentTourIndex ? 'bg-cyan-400 w-3' : 'bg-dark-600'}"></span>
-  `).join("");
 
-  document.getElementById("tourPrevBtn").style.display = currentTourIndex === 0 ? "none" : "block";
-  document.getElementById("tourNextBtn").innerText = currentTourIndex === TOUR_STEPS.length - 1 ? "Finish ✓" : "Next →";
+  if (badge) badge.innerText = `Step ${currentTourIndex + 1} of ${TOUR_STEPS.length}`;
+  if (title) title.innerText = step.title;
+  if (desc) desc.innerText = step.description;
 
+  if (dotsContainer) {
+    dotsContainer.innerHTML = TOUR_STEPS.map((_, i) => `
+      <span class="w-1.5 h-1.5 rounded-full transition-all ${i === currentTourIndex ? 'bg-cyan-400 w-3' : 'bg-dark-600'}"></span>
+    `).join("");
+  }
+
+  if (prevBtn) prevBtn.style.display = currentTourIndex === 0 ? "none" : "block";
+  if (nextBtn) nextBtn.innerText = currentTourIndex === TOUR_STEPS.length - 1 ? "Finish ✓" : "Next →";
+
+  // Mark the active option/target element with glowing spotlight and scroll into view
   setTimeout(() => {
     const targetEl = document.getElementById(step.targetId);
     if (targetEl) {
       targetEl.classList.add("tour-highlight", "tour-pulse");
+      targetEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
-  }, 150);
+  }, 100);
 }
 
 function nextTourStep() {
@@ -2822,7 +2839,7 @@ function nextTourStep() {
     renderTourStep();
   } else {
     stopWalkthrough();
-    showToast("Walkthrough completed!");
+    showToast("Walkthrough completed! Explore the graph freely.");
   }
 }
 

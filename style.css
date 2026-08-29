@@ -88,24 +88,30 @@ html, body {
   box-shadow: 0 8px 20px -4px rgba(0, 0, 0, 0.5);
 }
 
-/* Tour Highlight & Spotlight Effects */
+/* Tour Highlight & Spotlight Effects - 10-15% subtle backdrop blur, marked option stands out above overlay */
 .tour-highlight {
   position: relative !important;
-  z-index: 45 !important;
-  box-shadow: 0 0 0 4px rgba(6, 182, 212, 0.6), 0 0 30px rgba(6, 182, 212, 0.4) !important;
+  z-index: 60 !important;
+  box-shadow: 0 0 0 3px #06b6d4, 0 0 25px rgba(6, 182, 212, 0.75) !important;
   border-color: #22d3ee !important;
-  transition: all 0.3s ease !important;
+  background-color: rgba(6, 182, 212, 0.25) !important;
+  color: #ffffff !important;
+  outline: 2px solid #38bdf8 !important;
+  outline-offset: 2px !important;
+  transition: all 0.25s ease-in-out !important;
 }
 
-@keyframes pulseGlow {
+@keyframes tourPulseAnim {
   0%, 100% {
-    box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.4), 0 0 20px rgba(6, 182, 212, 0.2);
+    box-shadow: 0 0 0 3px #06b6d4, 0 0 16px rgba(6, 182, 212, 0.6);
+    transform: scale(1);
   }
   50% {
-    box-shadow: 0 0 0 5px rgba(6, 182, 212, 0.8), 0 0 35px rgba(6, 182, 212, 0.5);
+    box-shadow: 0 0 0 5px #38bdf8, 0 0 28px rgba(56, 189, 248, 0.9);
+    transform: scale(1.02);
   }
 }
 
 .tour-pulse {
-  animation: pulseGlow 2s infinite ease-in-out;
+  animation: tourPulseAnim 1.8s infinite ease-in-out !important;
 }
