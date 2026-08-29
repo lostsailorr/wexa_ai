@@ -4,14 +4,15 @@ import os
 with open("backend/static/index.html", "r", encoding="utf-8") as f:
     html = f.read()
 
-# Set backdrop with very subtle 10-15% blur (backdrop-blur-[1px]) and light tint
-tour_overlay_html = '''  <!-- GUIDED WALKTHROUGH DOCK (10-15% SUBTLE BLUR, HIGHLY MARKED OPTIONS) -->
+# Completely remove any backdrop-blur from tourBackdrop and walkthrough dock
+# Make backdrop completely transparent (zero blur)
+tour_overlay_html = '''  <!-- GUIDED WALKTHROUGH DOCK (ZERO BLUR, BLINKING MARKED MODULES) -->
   <div id="walkthroughOverlay" class="hidden fixed inset-0 z-50 pointer-events-none transition-all duration-300">
-    <!-- Subtle 10-15% blur backdrop for soft focus without obscuring readability -->
-    <div id="tourBackdrop" onclick="stopWalkthrough()" class="absolute inset-0 bg-dark-950/30 backdrop-blur-[1.5px] pointer-events-auto cursor-pointer"></div>
+    <!-- Zero blur click-away backdrop -->
+    <div id="tourBackdrop" onclick="stopWalkthrough()" class="absolute inset-0 bg-transparent pointer-events-auto cursor-pointer"></div>
     
-    <!-- Floating Tour Guide Dock: Strict bottom-right positioning, zero overlap, crisp styling -->
-    <div id="tourCard" class="fixed bottom-6 right-6 pointer-events-auto max-w-md w-[420px] p-5 rounded-2xl bg-dark-800/98 border-2 border-cyan-500 shadow-2xl shadow-cyan-500/30 transition-all duration-300 z-50">'''
+    <!-- Floating Tour Guide Dock: Strict bottom-right positioning, zero overlap, solid crisp card -->
+    <div id="tourCard" class="fixed bottom-6 right-6 pointer-events-auto max-w-md w-[420px] p-5 rounded-2xl bg-dark-800 border-2 border-cyan-500 shadow-2xl shadow-cyan-500/30 transition-all duration-300 z-50">'''
 
 if '<div id="walkthroughOverlay"' in html:
     parts = html.split('<div id="walkthroughOverlay"')
@@ -25,7 +26,7 @@ with open("backend/static/style.css", "r", encoding="utf-8") as f:
 if "/* Tour Highlight" in css:
     css = css.split("/* Tour Highlight")[0]
 
-tour_css = '''/* Tour Highlight & Spotlight Effects - 10-15% subtle backdrop blur, marked option stands out above overlay */
+tour_css = '''/* Tour Highlight & Spotlight Effects - Zero blur, prominent single blink animation */
 .tour-highlight {
   position: relative !important;
   z-index: 60 !important;
@@ -38,19 +39,36 @@ tour_css = '''/* Tour Highlight & Spotlight Effects - 10-15% subtle backdrop blu
   transition: all 0.25s ease-in-out !important;
 }
 
-@keyframes tourPulseAnim {
-  0%, 100% {
-    box-shadow: 0 0 0 3px #06b6d4, 0 0 16px rgba(6, 182, 212, 0.6);
+@keyframes tourBlinkAnimation {
+  0% {
+    box-shadow: 0 0 0 0 rgba(6, 182, 212, 0);
     transform: scale(1);
+    background-color: transparent;
+  }
+  25% {
+    box-shadow: 0 0 0 8px #38bdf8, 0 0 45px rgba(56, 189, 248, 1);
+    transform: scale(1.05);
+    background-color: rgba(6, 182, 212, 0.45);
   }
   50% {
-    box-shadow: 0 0 0 5px #38bdf8, 0 0 28px rgba(56, 189, 248, 0.9);
-    transform: scale(1.02);
+    box-shadow: 0 0 0 2px #06b6d4, 0 0 10px rgba(6, 182, 212, 0.3);
+    transform: scale(1);
+    background-color: rgba(6, 182, 212, 0.15);
+  }
+  75% {
+    box-shadow: 0 0 0 8px #38bdf8, 0 0 45px rgba(56, 189, 248, 1);
+    transform: scale(1.05);
+    background-color: rgba(6, 182, 212, 0.45);
+  }
+  100% {
+    box-shadow: 0 0 0 3px #06b6d4, 0 0 25px rgba(6, 182, 212, 0.75);
+    transform: scale(1);
+    background-color: rgba(6, 182, 212, 0.25);
   }
 }
 
-.tour-pulse {
-  animation: tourPulseAnim 1.8s infinite ease-in-out !important;
+.tour-blink {
+  animation: tourBlinkAnimation 0.85s cubic-bezier(0.2, 0.8, 0.2, 1) 1 forwards !important;
 }
 '''
 css = css.strip() + "\n\n" + tour_css
@@ -60,7 +78,7 @@ with open("backend/static/app.js", "r", encoding="utf-8") as f:
     js = f.read()
 
 walkthrough_section = '''// ==========================================
-// 12. WALKTHROUGH TOUR ENGINE (SUBTLE 10-15% BLUR, CLEARLY MARKED OPTIONS)
+// 12. WALKTHROUGH TOUR ENGINE (ZERO BLUR, BLINKING MARKED MODULES)
 // ==========================================
 const TOUR_STEPS = [
   {
@@ -126,7 +144,7 @@ function stopWalkthrough() {
   const overlay = document.getElementById("walkthroughOverlay");
   if (overlay) overlay.classList.add("hidden");
   document.querySelectorAll(".tour-highlight").forEach((el) => {
-    el.classList.remove("tour-highlight", "tour-pulse");
+    el.classList.remove("tour-highlight", "tour-blink", "tour-pulse");
   });
 }
 
@@ -134,9 +152,9 @@ function renderTourStep() {
   const step = TOUR_STEPS[currentTourIndex];
   if (!step) return;
 
-  // Clear previous highlights
-  document.querySelectorAll(".tour-highlight").forEach((el) => {
-    el.classList.remove("tour-highlight", "tour-pulse");
+  // Clear previous highlights and blink animations
+  document.querySelectorAll(".tour-highlight, .tour-blink, .tour-pulse").forEach((el) => {
+    el.classList.remove("tour-highlight", "tour-blink", "tour-pulse");
   });
 
   // Switch tab if specified
@@ -165,12 +183,17 @@ function renderTourStep() {
   if (prevBtn) prevBtn.style.display = currentTourIndex === 0 ? "none" : "block";
   if (nextBtn) nextBtn.innerText = currentTourIndex === TOUR_STEPS.length - 1 ? "Finish ✓" : "Next →";
 
-  // Mark the active option/target element with glowing spotlight and scroll into view
+  // Mark the target module, trigger a distinct blink once, and scroll into view
   setTimeout(() => {
     const targetEl = document.getElementById(step.targetId);
     if (targetEl) {
-      targetEl.classList.add("tour-highlight", "tour-pulse");
+      targetEl.classList.add("tour-highlight", "tour-blink");
       targetEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      
+      // Keep persistent highlight after blink completes
+      setTimeout(() => {
+        targetEl.classList.remove("tour-blink");
+      }, 900);
     }
   }, 100);
 }
@@ -210,4 +233,4 @@ for folder in ["backend/static", "public", "public/static", "."]:
     with open(os.path.join(folder, "app.js"), "w", encoding="utf-8") as f:
         f.write(js)
 
-print("Updated walkthrough styling and 10-15% subtle blur across all folders!")
+print("Successfully removed blur and added single-blink marking for walkthrough!")

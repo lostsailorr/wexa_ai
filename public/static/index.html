@@ -460,13 +460,13 @@
     <span id="toastMsg">Action completed</span>
   </div>
 
-  <!-- GUIDED WALKTHROUGH DOCK (10-15% SUBTLE BLUR, HIGHLY MARKED OPTIONS) -->
+  <!-- GUIDED WALKTHROUGH DOCK (ZERO BLUR, BLINKING MARKED MODULES) -->
   <div id="walkthroughOverlay" class="hidden fixed inset-0 z-50 pointer-events-none transition-all duration-300">
-    <!-- Subtle 10-15% blur backdrop for soft focus without obscuring readability -->
-    <div id="tourBackdrop" onclick="stopWalkthrough()" class="absolute inset-0 bg-dark-950/30 backdrop-blur-[1.5px] pointer-events-auto cursor-pointer"></div>
+    <!-- Zero blur click-away backdrop -->
+    <div id="tourBackdrop" onclick="stopWalkthrough()" class="absolute inset-0 bg-transparent pointer-events-auto cursor-pointer"></div>
     
-    <!-- Floating Tour Guide Dock: Strict bottom-right positioning, zero overlap, crisp styling -->
-    <div id="tourCard" class="fixed bottom-6 right-6 pointer-events-auto max-w-md w-[420px] p-5 rounded-2xl bg-dark-800/98 border-2 border-cyan-500 shadow-2xl shadow-cyan-500/30 transition-all duration-300 z-50">
+    <!-- Floating Tour Guide Dock: Strict bottom-right positioning, zero overlap, solid crisp card -->
+    <div id="tourCard" class="fixed bottom-6 right-6 pointer-events-auto max-w-md w-[420px] p-5 rounded-2xl bg-dark-800 border-2 border-cyan-500 shadow-2xl shadow-cyan-500/30 transition-all duration-300 z-50">
       <div class="flex items-center justify-between border-b border-dark-700/80 pb-3 mb-3">
         <div class="flex items-center space-x-2">
           <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse"></span>

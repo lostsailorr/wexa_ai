@@ -2718,7 +2718,7 @@ function showToast(msg, isError = false) {
 }
 
 // ==========================================
-// 12. WALKTHROUGH TOUR ENGINE (SUBTLE 10-15% BLUR, CLEARLY MARKED OPTIONS)
+// 12. WALKTHROUGH TOUR ENGINE (ZERO BLUR, BLINKING MARKED MODULES)
 // ==========================================
 const TOUR_STEPS = [
   {
@@ -2784,7 +2784,7 @@ function stopWalkthrough() {
   const overlay = document.getElementById("walkthroughOverlay");
   if (overlay) overlay.classList.add("hidden");
   document.querySelectorAll(".tour-highlight").forEach((el) => {
-    el.classList.remove("tour-highlight", "tour-pulse");
+    el.classList.remove("tour-highlight", "tour-blink", "tour-pulse");
   });
 }
 
@@ -2792,9 +2792,9 @@ function renderTourStep() {
   const step = TOUR_STEPS[currentTourIndex];
   if (!step) return;
 
-  // Clear previous highlights
-  document.querySelectorAll(".tour-highlight").forEach((el) => {
-    el.classList.remove("tour-highlight", "tour-pulse");
+  // Clear previous highlights and blink animations
+  document.querySelectorAll(".tour-highlight, .tour-blink, .tour-pulse").forEach((el) => {
+    el.classList.remove("tour-highlight", "tour-blink", "tour-pulse");
   });
 
   // Switch tab if specified
@@ -2823,12 +2823,17 @@ function renderTourStep() {
   if (prevBtn) prevBtn.style.display = currentTourIndex === 0 ? "none" : "block";
   if (nextBtn) nextBtn.innerText = currentTourIndex === TOUR_STEPS.length - 1 ? "Finish ✓" : "Next →";
 
-  // Mark the active option/target element with glowing spotlight and scroll into view
+  // Mark the target module, trigger a distinct blink once, and scroll into view
   setTimeout(() => {
     const targetEl = document.getElementById(step.targetId);
     if (targetEl) {
-      targetEl.classList.add("tour-highlight", "tour-pulse");
+      targetEl.classList.add("tour-highlight", "tour-blink");
       targetEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      
+      // Keep persistent highlight after blink completes
+      setTimeout(() => {
+        targetEl.classList.remove("tour-blink");
+      }, 900);
     }
   }, 100);
 }
