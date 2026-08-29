@@ -2714,7 +2714,7 @@ function showToast(msg, isError = false) {
   toast.classList.remove("hidden");
   setTimeout(() => {
     toast.classList.add("hidden");
-  }}, 3500);
+  }, 3500);
 }
 
 // ==========================================
