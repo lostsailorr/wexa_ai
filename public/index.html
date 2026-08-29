@@ -57,58 +57,61 @@
 <body class="bg-dark-900 text-slate-100 font-sans h-screen flex flex-col antialiased selection:bg-cyan-500 selection:text-dark-900 overflow-hidden">
 
   <!-- TOP NAVIGATION HEADER -->
-  <header class="sticky top-0 z-40 bg-dark-800/80 backdrop-blur-md border-b border-dark-600/60 px-6 py-3.5 flex items-center justify-between transition-all">
-    <div class="flex items-center space-x-4">
-      <button id="btnHeaderToggleSidebar" onclick="toggleSidebar()" title="Toggle Sidebar (Ctrl+B)" class="p-2 rounded-lg bg-dark-700 hover:bg-dark-600 border border-dark-600 text-slate-300 hover:text-cyan-400 text-xs transition-all flex items-center justify-center">
+  <!-- TOP NAVIGATION HEADER -->
+  <header class="sticky top-0 z-40 bg-dark-800/90 backdrop-blur-md border-b border-dark-600/60 px-4 sm:px-6 py-2.5 flex items-center justify-between gap-4 transition-all">
+    <div class="flex items-center space-x-3 shrink-0">
+      <button id="btnHeaderToggleSidebar" onclick="toggleSidebar()" title="Toggle Sidebar (Ctrl+B)" class="p-2 rounded-lg bg-dark-700 hover:bg-dark-600 border border-dark-600 text-slate-300 hover:text-cyan-400 text-xs transition-all flex items-center justify-center shrink-0">
         <i data-lucide="panel-left" class="w-4 h-4"></i>
       </button>
-      <div class="flex items-center space-x-3 group cursor-pointer" onclick="switchTab('explorer')">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-600 via-indigo-600 to-emerald-500 p-0.5 shadow-lg shadow-cyan-500/20 group-hover:shadow-cyan-500/40 transition-all duration-300">
+      
+      <!-- Brand & Subtitle (Guaranteed No Wrap & Clean Alignment) -->
+      <div class="flex items-center space-x-3 group cursor-pointer shrink-0" onclick="switchTab('explorer')">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-600 via-indigo-600 to-emerald-500 p-0.5 shadow-lg shadow-cyan-500/20 group-hover:shadow-cyan-500/40 transition-all duration-300 shrink-0">
           <div class="w-full h-full bg-dark-900 rounded-[10px] flex items-center justify-center">
             <i data-lucide="shield-alert" class="w-5 h-5 text-cyan-400"></i>
           </div>
         </div>
-        <div>
-          <div class="flex items-center space-x-2">
-            <h1 class="text-lg font-bold tracking-tight bg-gradient-to-r from-white via-slate-100 to-slate-400 bg-clip-text text-transparent">SENTINEL<span class="text-cyan-400 font-extrabold">GRAPH</span></h1>
-            <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">AML v1.0</span>
+        <div class="shrink-0 flex flex-col justify-center">
+          <div class="flex items-center space-x-2 whitespace-nowrap">
+            <h1 class="text-base sm:text-lg font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-100 to-slate-400 bg-clip-text text-transparent">SENTINEL<span class="text-cyan-400">GRAPH</span></h1>
+            <span class="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">AML v1.0</span>
           </div>
-          <p class="text-xs text-slate-400">CognoDB Graph Intelligence Platform</p>
+          <p class="text-[11px] text-slate-400 whitespace-nowrap font-medium leading-none mt-0.5">CognoDB Graph Intelligence Platform</p>
         </div>
-      </div>
-
-      <!-- Quick Search Input -->
-      <div class="relative hidden md:block w-72 lg:w-96 ml-6">
-        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-          <i data-lucide="search" class="w-4 h-4"></i>
-        </div>
-        <input 
-          type="text" 
-          id="globalSearchInput" 
-          placeholder="Search entities, accounts, persons..." 
-          class="w-full pl-9 pr-4 py-1.5 text-xs rounded-lg bg-dark-700/80 border border-dark-600 text-slate-200 placeholder-slate-400 focus:outline-none focus:border-cyan-500/80 focus:ring-1 focus:ring-cyan-500/80 transition-all"
-        >
-        <div id="searchResultsDropdown" class="hidden absolute left-0 right-0 top-full mt-1.5 bg-dark-800 border border-dark-600 rounded-lg shadow-2xl z-50 max-h-72 overflow-y-auto divide-y divide-dark-700/60"></div>
       </div>
     </div>
 
+    <!-- Quick Search Input (Cleanly flexed) -->
+    <div class="relative hidden lg:block flex-1 max-w-sm mx-4">
+      <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+        <i data-lucide="search" class="w-4 h-4"></i>
+      </div>
+      <input 
+        type="text" 
+        id="globalSearchInput" 
+        placeholder="Search entities, accounts, persons..." 
+        class="w-full pl-9 pr-4 py-1.5 text-xs rounded-lg bg-dark-700/80 border border-dark-600 text-slate-200 placeholder-slate-400 focus:outline-none focus:border-cyan-500/80 focus:ring-1 focus:ring-cyan-500/80 transition-all"
+      >
+      <div id="searchResultsDropdown" class="hidden absolute left-0 right-0 top-full mt-1.5 bg-dark-800 border border-dark-600 rounded-lg shadow-2xl z-50 max-h-72 overflow-y-auto divide-y divide-dark-700/60"></div>
+    </div>
+
     <!-- Right Header Tools -->
-    <div class="flex items-center space-x-3">
-            <!-- Candidate Info / Start Page Button -->
+    <div class="flex items-center space-x-2.5 shrink-0">
+      <!-- Candidate Profile / Return to Landing button -->
       <button 
         id="btnShowLanding" 
         onclick="showLandingPage()" 
         title="Back to Landing Page"
-        class="hidden sm:flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-dark-700/80 hover:bg-dark-600 border border-dark-600 text-xs text-slate-300 hover:text-cyan-300 transition-all"
+        class="hidden sm:flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-dark-700/80 hover:bg-dark-600 border border-dark-600 text-xs text-slate-300 hover:text-cyan-300 transition-all shrink-0"
       >
         <i data-lucide="home" class="w-3.5 h-3.5 text-cyan-400"></i>
-        <span class="font-medium">Robin Burdewa</span>
+        <span class="font-medium whitespace-nowrap">Robin Burdewa</span>
       </button>
 
       <!-- Database Connection Status Badge -->
-      <div id="dbStatusBadge" class="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-dark-700 border border-dark-600 text-xs text-slate-300">
+      <div id="dbStatusBadge" class="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-dark-700 border border-dark-600 text-xs text-slate-300 shrink-0">
         <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-        <span id="dbStatusText" class="font-medium">Connecting...</span>
+        <span id="dbStatusText" class="font-medium whitespace-nowrap">Connecting...</span>
       </div>
 
       <!-- Walkthrough Tour Button -->
@@ -116,10 +119,10 @@
         id="btnStartWalkthrough" 
         onclick="startWalkthrough()" 
         title="Start Interactive App Walkthrough"
-        class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-cyan-500/20 via-indigo-500/20 to-emerald-500/20 hover:from-cyan-500/30 hover:to-emerald-500/30 border border-cyan-500/40 text-cyan-300 text-xs font-bold transition-all hover:scale-[1.03] active:scale-[0.98] shadow-lg shadow-cyan-500/10"
+        class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-cyan-500/20 via-indigo-500/20 to-emerald-500/20 hover:from-cyan-500/30 hover:to-emerald-500/30 border border-cyan-500/40 text-cyan-300 text-xs font-bold transition-all hover:scale-[1.03] active:scale-[0.98] shadow-lg shadow-cyan-500/10 shrink-0"
       >
         <i data-lucide="compass" class="w-3.5 h-3.5 text-cyan-400"></i>
-        <span>Walkthrough</span>
+        <span class="whitespace-nowrap">Walkthrough</span>
       </button>
 
       <!-- Seed Database Button -->
@@ -127,17 +130,17 @@
         id="btnSeedDb" 
         onclick="triggerSeed()" 
         title="Seed realistic crime syndicate dataset into CognoDB"
-        class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 text-xs font-semibold transition-all hover:scale-[1.02] active:scale-[0.98]"
+        class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 text-xs font-semibold transition-all hover:scale-[1.02] active:scale-[0.98] shrink-0"
       >
         <i data-lucide="database" class="w-3.5 h-3.5"></i>
-        <span>Seed CognoDB</span>
+        <span class="whitespace-nowrap">Seed CognoDB</span>
       </button>
 
       <!-- Refresh Graph Button -->
       <button 
         onclick="loadInitialGraph()" 
         title="Reload live graph data"
-        class="p-2 rounded-lg bg-dark-700 hover:bg-dark-600 border border-dark-600 text-slate-300 hover:text-white text-xs transition-all"
+        class="p-2 rounded-lg bg-dark-700 hover:bg-dark-600 border border-dark-600 text-slate-300 hover:text-white text-xs transition-all shrink-0"
       >
         <i data-lucide="rotate-cw" class="w-4 h-4"></i>
       </button>
@@ -521,7 +524,7 @@
           <div class="w-7 h-7 rounded-lg bg-cyan-500/20 text-cyan-300 font-bold text-xs flex items-center justify-center">RB</div>
           <div class="text-left">
             <div class="text-xs font-bold text-slate-200">Robin Burdewa</div>
-            <div class="text-[11px] text-cyan-400 font-mono">+91 76671020</div>
+            <div class="text-[11px] text-cyan-400 font-mono">+91 7667102054</div>
           </div>
         </div>
 
@@ -645,7 +648,7 @@
       <div class="flex items-center space-x-2">
         <span>Developed by <strong class="text-white">Robin Burdewa</strong></span>
         <span>•</span>
-        <span class="font-mono text-cyan-400">+91 76671020</span>
+        <span class="font-mono text-cyan-400">+91 7667102054</span>
       </div>
       <div>
         <span>Built for <strong>CognoDB Take-Home Assignment 2 (Wexa AI)</strong></span>

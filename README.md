@@ -2,7 +2,7 @@
 
 > **CognoDB Assignment 2 Submission**  
 > **Candidate:** Robin Burdewa  
-> **Contact:** +91 76671020  
+> **Contact:** +91 7667102054  
 > *Built with **CognoDB Cloud** (openCypher / Bolt Protocol), Python FastAPI, and Modern Interactive Network Visualization.*
 
 ---
@@ -337,6 +337,6 @@ According to the Wexa AI Take-Home Assignment requirements:
 - [x] **Email Submission Ready**:
   - **To**: `hr@wexa.ai`
   - **Subject Line**: `CognoDB Assignment 2 – Robin Burdewa`
-  - **Candidate Contact**: `+91 76671020`
+  - **Candidate Contact**: `+91 7667102054`
   - **Note**: CognoDB instance kept running for live data trial.
 
