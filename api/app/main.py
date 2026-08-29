@@ -1,4 +1,10 @@
 import os
+import sys
+
+api_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if api_dir not in sys.path:
+    sys.path.insert(0, api_dir)
+
 import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI

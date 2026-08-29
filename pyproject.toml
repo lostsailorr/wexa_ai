@@ -1,0 +1,14 @@
+[project]
+name = "wexa-ai"
+version = "1.0.0"
+dependencies = [
+    "fastapi>=0.115.0",
+    "neo4j>=5.28.0",
+    "pydantic>=2.10.0",
+    "pydantic-settings>=2.7.0",
+    "python-dotenv>=1.0.0",
+    "requests>=2.32.0"
+]
+
+[tool.vercel]
+entrypoint = "api.app.main:app"
