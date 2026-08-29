@@ -1425,14 +1425,14 @@ for p in paths:
     with open(p, "w", encoding="utf-8") as f:
         f.write(full_app_js)
 
-# Update index.html to add onchange on uboSelectCompany and sanctionSelectEntity
+# Update index.html to add onchange and cache-busting
 with open("backend/static/index.html", "r", encoding="utf-8") as f:
     index_html = f.read()
 
-if 'onchange="resolveUBO()"' not in index_html:
-    index_html = index_html.replace('id="uboSelectCompany"', 'id="uboSelectCompany" onchange="resolveUBO()"')
-if 'onchange="traceSanctionPath()"' not in index_html:
-    index_html = index_html.replace('id="sanctionSelectEntity"', 'id="sanctionSelectEntity" onchange="traceSanctionPath()"')
+index_html = index_html.replace('src="/app.js"', 'src="/app.js?v=2.1"')
+index_html = index_html.replace('src="/app.js?v=2.0"', 'src="/app.js?v=2.1"')
+index_html = index_html.replace('href="/style.css"', 'href="/style.css?v=2.1"')
+index_html = index_html.replace('href="/style.css?v=2.0"', 'href="/style.css?v=2.1"')
 
 with open("backend/static/index.html", "w", encoding="utf-8") as f:
     f.write(index_html)
