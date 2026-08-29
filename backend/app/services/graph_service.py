@@ -166,11 +166,12 @@ class GraphService:
         if db._is_connected:
             try:
                 results = db.execute_query(CYPHER_CIRCULAR_RINGS, {"limit": limit})
-                return {
-                    "mode": "live_cognodb",
-                    "rings_found": len(results),
-                    "rings": results
-                }
+                if results:
+                    return {
+                        "mode": "live_cognodb",
+                        "rings_found": len(results),
+                        "rings": results
+                    }
             except Exception as e:
                 logger.warning(f"Live circular ring query failed: {e}")
 
@@ -381,10 +382,11 @@ class GraphService:
         if db._is_connected:
             try:
                 results = db.execute_query(CYPHER_MULE_HUBS, {"limit": limit})
-                return {
-                    "mode": "live_cognodb",
-                    "hubs": results
-                }
+                if results:
+                    return {
+                        "mode": "live_cognodb",
+                        "hubs": results
+                    }
             except Exception as e:
                 logger.warning(f"Live mule hub query failed: {e}")
 

@@ -36,7 +36,8 @@ class Neo4jConnection:
                 auth=(user, password),
                 max_connection_lifetime=3600,
                 max_connection_pool_size=50,
-                connection_acquisition_timeout=15.0
+                connection_timeout=3.0,
+                connection_acquisition_timeout=3.0
             )
             # Verify connectivity with a lightweight ping
             with self._driver.session() as session:
