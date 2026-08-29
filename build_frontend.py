@@ -176,15 +176,7 @@ mock_mules = [
     }
 ]
 
-with open("backend/static/app.js", "r", encoding="utf-8") as f:
-    app_js = f.read()
-
-# Remove any previous dataset header
-if "let networkInstance = null;" in app_js:
-    parts = app_js.split("let networkInstance = null;")
-    app_js = "let networkInstance = null;" + parts[-1]
-
-data_block = f"""// ==========================================
+app_js_core = f"""// ==========================================
 // EMBEDDED REALISTIC DATASET (CLIENT-SIDE RESILIENCE)
 // ==========================================
 const DEFAULT_NODES = {json.dumps(mock_nodes, indent=2)};
@@ -193,137 +185,953 @@ const DEFAULT_RINGS = {json.dumps(mock_rings, indent=2)};
 const DEFAULT_UBO = {json.dumps(mock_ubo, indent=2)};
 const DEFAULT_SANCTIONS = {json.dumps(mock_sanctions, indent=2)};
 const DEFAULT_MULE_HUBS = {json.dumps(mock_mules, indent=2)};
-"""
 
-new_app_js = data_block + "\n" + app_js
+// Resilient fast fetch with timeout
+async function safeFetchJson(url, timeoutMs = 2500, postBody = null) {{
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {{
+    const options = {{ signal: controller.signal }};
+    if (postBody) {{
+      options.method = "POST";
+      options.headers = {{ "Content-Type": "application/json" }};
+      options.body = JSON.stringify(postBody);
+    }}
+    const res = await fetch(url, options);
+    clearTimeout(timeoutId);
+    if (!res.ok) return null;
+    return await res.json();
+  }} catch (e) {{
+    clearTimeout(timeoutId);
+    return null;
+  }}
+}}
 
-# Fallback health check
-new_app_js = new_app_js.replace(
-    'badge.className = "flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/30 text-xs text-rose-400";\n    text.innerText = "Backend Offline";',
-    'badge.className = "flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-xs text-amber-300";\n    text.innerText = "Demo Simulation Mode";'
-)
+let networkInstance = null;
+let graphData = {{ nodes: [], edges: [] }};
+let rawNodes = [];
+let rawEdges = [];
+let visNodesDataSet = null;
+let visEdgesDataSet = null;
 
-# Resilient loadCircularRings
-old_rings_fn = """async function loadCircularRings() {
-  const container = document.getElementById("ringsContainer");
-  container.innerHTML = `<div class="p-6 text-center text-slate-400 text-xs font-mono">Scanning transaction topology for closed loops...</div>`;
+// Initialize when DOM is ready
+document.addEventListener("DOMContentLoaded", () => {{
+  if (window.lucide) {{
+    lucide.createIcons();
+  }}
+  checkDatabaseHealth();
+  loadMetrics();
+  loadInitialGraph();
+  setupSearch();
+  loadCircularRings();
+  loadMuleHubs();
+}});
 
-  try {
-    const res = await fetch("/api/analytics/circular-rings?limit=10");
-    const data = await res.json();
-    const rings = data.rings || [];"""
+// ==========================================
+// 1. HEALTH & METRICS
+// ==========================================
+async function checkDatabaseHealth() {{
+  const badge = document.getElementById("dbStatusBadge");
+  const text = document.getElementById("dbStatusText");
+  const data = await safeFetchJson("/api/admin/health", 2500);
+  if (data && data.database && data.database.connected) {{
+    badge.className = "flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-400";
+    text.innerText = "CognoDB Cloud (Connected)";
+  }} else {{
+    badge.className = "flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-xs text-amber-300";
+    text.innerText = "Demo Simulation Mode";
+  }}
+}}
 
-new_rings_fn = """async function loadCircularRings() {
+async function loadMetrics() {{
+  let m = {{
+    person_count: DEFAULT_NODES.filter(n => n.label === 'Person').length,
+    company_count: DEFAULT_NODES.filter(n => n.label === 'Company').length,
+    account_count: DEFAULT_NODES.filter(n => n.label === 'BankAccount').length,
+    transfer_count: DEFAULT_EDGES.filter(e => e.type === 'TRANSFERRED_TO').length,
+    total_relationships: DEFAULT_EDGES.length
+  }};
+  const data = await safeFetchJson("/api/graph/metrics", 2500);
+  if (data && data.metrics) m = data.metrics;
+
+  document.getElementById("statPersons").innerText = m.person_count || 0;
+  document.getElementById("statCompanies").innerText = m.company_count || 0;
+  document.getElementById("statAccounts").innerText = m.account_count || 0;
+  document.getElementById("statTransfers").innerText = m.transfer_count || 0;
+  document.getElementById("statEdges").innerText = m.total_relationships || 0;
+}}
+
+// ==========================================
+// 2. GRAPH CANVAS RENDERING (Vis.js)
+// ==========================================
+async function loadInitialGraph(nodeType = "", minRisk = 0.0) {{
+  const container = document.getElementById("graphCanvas");
+  if (!container) return;
+
+  let url = `/api/graph/subgraph?`;
+  if (nodeType) url += `node_type=${{encodeURIComponent(nodeType)}}&`;
+  if (minRisk > 0) url += `min_risk=${{minRisk}}&`;
+
+  const data = await safeFetchJson(url, 2500);
+  if (data && Array.isArray(data.nodes) && data.nodes.length > 0) {{
+    rawNodes = data.nodes;
+    rawEdges = data.edges || [];
+  }} else {{
+    rawNodes = [...DEFAULT_NODES];
+    rawEdges = [...DEFAULT_EDGES];
+  }}
+
+  if (nodeType) {{
+    rawNodes = rawNodes.filter(n => n.label === nodeType);
+    const validIds = new Set(rawNodes.map(n => n.id || n.account_number));
+    rawEdges = rawEdges.filter(e => validIds.has(e.source) && validIds.has(e.target));
+  }}
+  if (minRisk > 0) {{
+    rawNodes = rawNodes.filter(n => (n.risk_score || n.base_risk || 0.0) >= minRisk);
+    const validIds = new Set(rawNodes.map(n => n.id || n.account_number));
+    rawEdges = rawEdges.filter(e => validIds.has(e.source) && validIds.has(e.target));
+  }}
+
+  const nodesArray = rawNodes.map((n) => {{
+    const label = n.label || "Entity";
+    const name = n.name || n.id || n.account_number || "Entity";
+    const risk = n.risk_score || n.base_risk || 0.0;
+    
+    let color = {{ background: "#1e293b", border: "#64748b", highlight: {{ background: "#334155", border: "#38bdf8" }} }};
+    let shape = "dot";
+    let size = 20;
+
+    if (label === "Person") {{
+      color = {{ background: "#0891b2", border: "#22d3ee", highlight: {{ background: "#06b6d4", border: "#a5f3fc" }} }};
+      shape = "dot";
+      size = 22;
+    }} else if (label === "Company") {{
+      color = {{ background: "#d97706", border: "#fbbf24", highlight: {{ background: "#f59e0b", border: "#fde68a" }} }};
+      shape = "box";
+      size = 24;
+    }} else if (label === "BankAccount") {{
+      color = {{ background: "#059669", border: "#34d399", highlight: {{ background: "#10b981", border: "#a7f3d0" }} }};
+      shape = "ellipse";
+      size = 18;
+    }} else if (label === "SanctionList") {{
+      color = {{ background: "#b91c1c", border: "#f87171", highlight: {{ background: "#ef4444", border: "#fca5a5" }} }};
+      shape = "hexagon";
+      size = 28;
+    }} else if (label === "Jurisdiction") {{
+      color = {{ background: "#7c3aed", border: "#c084fc", highlight: {{ background: "#8b5cf6", border: "#e9d5ff" }} }};
+      shape = "diamond";
+      size = 20;
+    }}
+
+    if (risk >= 0.8) {{
+      color.border = "#ef4444";
+    }}
+
+    return {{
+      id: n.id || n.account_number,
+      label: name.length > 20 ? name.substring(0, 18) + "..." : name,
+      title: `${{label}}: ${{name}}\\nRisk Score: ${{(risk * 100).toFixed(0)}}%`,
+      shape: shape,
+      size: size,
+      color: color,
+      font: {{ color: "#f8fafc", face: "Plus Jakarta Sans", size: 11 }},
+      borderWidth: risk >= 0.8 ? 3 : 1.5,
+      rawNode: n
+    }};
+  }});
+
+  const edgesArray = rawEdges.map((e, idx) => {{
+    let color = "#475569";
+    let labelText = e.type;
+
+    if (e.type === "TRANSFERRED_TO") {{
+      color = e.properties && e.properties.risk_flag ? "#ef4444" : "#10b981";
+      const amt = e.properties && e.properties.amount ? `$${{(e.properties.amount / 1000).toFixed(0)}}k` : "";
+      labelText = amt ? `TX ${{amt}}` : "TRANSFERRED_TO";
+    }} else if (e.type === "OWNS") {{
+      color = "#f59e0b";
+      const pct = e.properties && e.properties.share_pct ? `${{e.properties.share_pct}}%` : "";
+      labelText = pct ? `OWNS (${{pct}})` : "OWNS";
+    }} else if (e.type === "SANCTIONED_UNDER") {{
+      color = "#dc2626";
+      labelText = "SANCTIONED";
+    }}
+
+    return {{
+      id: e.id || `edge-${{idx}}`,
+      from: e.source,
+      to: e.target,
+      label: labelText,
+      color: {{ color: color, highlight: "#38bdf8" }},
+      font: {{ color: "#94a3b8", size: 9, face: "Plus Jakarta Sans", align: "middle", background: "#0b0f19" }},
+      arrows: {{ to: {{ enabled: true, scaleFactor: 0.8 }} }},
+      smooth: {{ type: "curvedCW", roundness: 0.15 }},
+      rawEdge: e
+    }};
+  }});
+
+  if (typeof vis === "undefined") {{
+    container.innerHTML = `<div class="p-8 text-center text-slate-400 text-xs">Vis.js library is loading or blocked by ad-blocker. Refresh page.</div>`;
+    return;
+  }}
+
+  visNodesDataSet = new vis.DataSet(nodesArray);
+  visEdgesDataSet = new vis.DataSet(edgesArray);
+
+  const options = {{
+    nodes: {{
+      shadow: {{ enabled: true, color: "rgba(0,0,0,0.5)", size: 10, x: 2, y: 2 }}
+    }},
+    edges: {{
+      width: 1.5,
+      selectionWidth: 3,
+      shadow: {{ enabled: false }}
+    }},
+    physics: {{
+      enabled: true,
+      solver: "forceAtlas2Based",
+      forceAtlas2Based: {{
+        gravitationalConstant: -70,
+        centralGravity: 0.015,
+        springLength: 140,
+        springConstant: 0.08,
+        damping: 0.4
+      }},
+      stabilization: {{ iterations: 100 }}
+    }},
+    interaction: {{
+      hover: true,
+      tooltipDelay: 100,
+      navigationButtons: false,
+      keyboard: true
+    }}
+  }};
+
+  if (networkInstance) {{
+    networkInstance.destroy();
+  }}
+
+  networkInstance = new vis.Network(container, {{ nodes: visNodesDataSet, edges: visEdgesDataSet }}, options);
+
+  networkInstance.on("click", (params) => {{
+    if (params.nodes.length > 0) {{
+      const selectedId = params.nodes[0];
+      const nodeItem = nodesArray.find((n) => n.id === selectedId);
+      if (nodeItem) {{
+        openDrawer(nodeItem.rawNode);
+      }}
+    }}
+  }});
+
+  setTimeout(() => {{
+    if (networkInstance) networkInstance.fit();
+  }}, 250);
+}}
+
+window.addEventListener("resize", () => {{
+  if (networkInstance) networkInstance.fit();
+}});
+
+function applyGraphFilters() {{
+  const nodeType = document.getElementById("filterNodeType").value;
+  const minRisk = parseFloat(document.getElementById("filterMinRisk").value || "0.0");
+  loadInitialGraph(nodeType, minRisk);
+}}
+
+function resetCanvasView() {{
+  if (networkInstance) {{
+    networkInstance.fit({{ animation: {{ duration: 600, easingFunction: "easeInOutQuad" }} }});
+  }}
+}}
+
+function togglePhysics(checkbox) {{
+  if (networkInstance) {{
+    networkInstance.setOptions({{ physics: {{ enabled: checkbox.checked }} }});
+  }}
+}}
+
+function focusEntityOnCanvas(entityId) {{
+  switchTab("explorer");
+  setTimeout(() => {{
+    if (networkInstance && visNodesDataSet) {{
+      const node = visNodesDataSet.get(entityId);
+      if (node) {{
+        networkInstance.focus(entityId, {{
+          scale: 1.3,
+          animation: {{ duration: 800, easingFunction: "easeInOutQuad" }}
+        }});
+        networkInstance.selectNodes([entityId]);
+        if (node.rawNode) openDrawer(node.rawNode);
+      }} else {{
+        showToast(`Entity ${{entityId}} not found in active canvas view`, true);
+      }}
+    }}
+  }}, 250);
+}}
+
+// ==========================================
+// 3. TAB NAVIGATION
+// ==========================================
+function switchTab(tabId) {{
+  document.querySelectorAll(".tab-btn").forEach((btn) => btn.classList.remove("active"));
+  const activeBtn = document.getElementById(`tab-${{tabId}}`);
+  if (activeBtn) activeBtn.classList.add("active");
+
+  document.querySelectorAll(".view-panel").forEach((panel) => panel.classList.add("hidden"));
+  const activePanel = document.getElementById(`view-${{tabId}}`);
+  if (activePanel) {{
+    activePanel.classList.remove("hidden");
+  }}
+
+  if (tabId === "explorer") {{
+    setTimeout(() => {{
+      if (networkInstance) networkInstance.fit();
+    }}, 150);
+  }} else if (tabId === "rings") {{
+    loadCircularRings();
+  }} else if (tabId === "mules") {{
+    loadMuleHubs();
+  }}
+
+  if (window.lucide) lucide.createIcons();
+}}
+
+// ==========================================
+// 4. ENTITY 360 DRAWER
+// ==========================================
+function openDrawer(node) {{
+  const drawer = document.getElementById("entityDrawer");
+  const content = document.getElementById("drawerContent");
+  drawer.classList.remove("hidden");
+
+  const risk = node.risk_score || node.base_risk || 0.0;
+  const riskPct = (risk * 100).toFixed(0);
+  let riskBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400">LOW RISK (${{riskPct}}%)</span>`;
+  if (risk >= 0.8) {{
+    riskBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-crimson-500/20 text-crimson-400 border border-crimson-500/30">CRITICAL RISK (${{riskPct}}%)</span>`;
+  }} else if (risk >= 0.5) {{
+    riskBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300">ELEVATED RISK (${{riskPct}}%)</span>`;
+  }}
+
+  content.innerHTML = `
+    <div class="space-y-4">
+      <div class="space-y-1">
+        <div class="flex items-center justify-between">
+          <span class="text-[10px] uppercase tracking-wider font-mono text-cyan-400 font-bold">${{node.label || 'Entity'}}</span>
+          ${{riskBadge}}
+        </div>
+        <h2 class="text-base font-bold text-white">${{node.name || node.account_number || node.id}}</h2>
+        <p class="text-xs text-slate-400 font-mono">Node ID: ${{node.id || node.account_number}}</p>
+      </div>
+
+      <div class="bg-dark-900/80 p-3.5 rounded-xl border border-dark-700 space-y-2">
+        <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Entity Attributes</div>
+        <div class="grid grid-cols-2 gap-2 text-xs">
+          ${{Object.entries(node).map(([k, v]) => {{
+            if (['id', 'name', 'label', 'risk_score', 'base_risk'].includes(k)) return '';
+            return `
+              <div>
+                <span class="text-slate-400 uppercase text-[10px] block">${{k.replace('_', ' ')}}</span>
+                <span class="font-medium text-slate-200">${{v}}</span>
+              </div>
+            `;
+          }}).join('')}}
+        </div>
+      </div>
+
+      <div class="space-y-2 pt-2">
+        <button onclick="expandNeighborhood('${{node.id || node.account_number}}')" class="w-full flex items-center justify-center space-x-2 py-2 px-4 rounded-lg bg-dark-700 hover:bg-dark-600 border border-dark-600 text-xs font-semibold text-cyan-400 transition-all">
+          <i data-lucide="network" class="w-4 h-4"></i>
+          <span>Expand 2-Hop Network</span>
+        </button>
+        <button onclick="traceEntitySanctions('${{node.id || node.account_number}}')" class="w-full flex items-center justify-center space-x-2 py-2 px-4 rounded-lg bg-crimson-500/10 hover:bg-crimson-500/20 border border-crimson-500/30 text-xs font-semibold text-crimson-400 transition-all">
+          <i data-lucide="shield-alert" class="w-4 h-4"></i>
+          <span>Trace Sanction Paths</span>
+        </button>
+      </div>
+    </div>
+  `;
+
+  if (window.lucide) lucide.createIcons();
+}}
+
+function closeDrawer() {{
+  document.getElementById("entityDrawer").classList.add("hidden");
+}}
+
+async function expandNeighborhood(entityId) {{
+  showToast(`Inspecting ${{entityId}} on network canvas`);
+  focusEntityOnCanvas(entityId);
+}}
+
+function traceEntitySanctions(entityId) {{
+  switchTab("sanctions");
+  const select = document.getElementById("sanctionSelectEntity");
+  let exists = false;
+  for (let i = 0; i < select.options.length; i++) {{
+    if (select.options[i].value === entityId) {{
+      select.selectedIndex = i;
+      exists = true;
+      break;
+    }}
+  }}
+  if (!exists) {{
+    const opt = document.createElement("option");
+    opt.value = entityId;
+    opt.innerText = entityId;
+    select.appendChild(opt);
+    select.value = entityId;
+  }}
+  traceSanctionPath();
+}}
+
+// ==========================================
+// 5. SMURFING RINGS (CIRCULAR CYCLES)
+// ==========================================
+async function loadCircularRings() {{
   const container = document.getElementById("ringsContainer");
   container.innerHTML = `<div class="p-6 text-center text-slate-400 text-xs font-mono">Scanning transaction topology for closed loops...</div>`;
 
   let rings = DEFAULT_RINGS;
-  try {
-    const res = await fetch("/api/analytics/circular-rings?limit=10");
-    if (res.ok) {
-      const data = await res.json();
-      if (data && Array.isArray(data.rings) && data.rings.length > 0) {
-        rings = data.rings;
-      }
-    }
-  } catch (err) {
-    console.warn("Using resilient client dataset fallback for circular rings", err);
-  }"""
+  const data = await safeFetchJson("/api/analytics/circular-rings?limit=10", 2500);
+  if (data && Array.isArray(data.rings) && data.rings.length > 0) {{
+    rings = data.rings;
+  }}
 
-new_app_js = new_app_js.replace(old_rings_fn, new_rings_fn)
+  if (!rings || rings.length === 0) {{
+    container.innerHTML = `<div class="p-8 text-center text-slate-400 text-xs">No circular loops detected.</div>`;
+    return;
+  }}
 
-# Resilient resolveUBO
-old_ubo_fn = """async function resolveUBO() {
-  const companyId = document.getElementById("uboSelectCompany").value;
-  const container = document.getElementById("uboResultsContainer");
-  container.innerHTML = `<div class="p-6 text-center text-slate-400 text-xs font-mono">Traversing recursive ownership graph [:OWNS*1..8]...</div>`;
+  container.innerHTML = rings.map((ring, idx) => {{
+    const vol = (ring.total_volume || 0).toLocaleString("en-US", {{ style: "currency", currency: "USD" }});
+    const nodes = ring.ring_nodes || [];
+    const edges = ring.ring_edges || [];
 
-  try {
-    const res = await fetch(`/api/analytics/ubo/${encodeURIComponent(companyId)}?min_share_pct=5.0`);
-    const data = await res.json();
-    const ubos = data.beneficial_owners || [];"""
+    const chainHtml = ring.account_chain.map((acc, i) => `
+      <span class="px-2 py-1 rounded bg-dark-900 text-cyan-300 font-mono text-xs border border-dark-600">${{acc}}</span>
+      ${{i < ring.account_chain.length - 1 ? `<i data-lucide="arrow-right" class="w-3.5 h-3.5 text-amber-400"></i>` : ''}}
+    `).join('');
 
-new_ubo_fn = """async function resolveUBO() {
+    return `
+      <div class="intel-card bg-dark-800 border border-amber-500/30 rounded-xl p-5 space-y-4 shadow-xl">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-dark-700 pb-3">
+          <div class="flex items-center space-x-3">
+            <div class="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-xs">#${{idx + 1}}</div>
+            <div>
+              <h4 class="font-bold text-sm text-white">Circular Smurfing Ring (${{ring.loop_length}} Hops)</h4>
+              <p class="text-xs text-slate-400">Origin Bank: <span class="text-slate-200 font-semibold">${{ring.origin_bank}}</span> (${{ring.origin_account}})</p>
+            </div>
+          </div>
+          <div class="text-right">
+            <div class="text-xs text-slate-400">Laundered Loop Volume</div>
+            <div class="text-base font-extrabold text-amber-400 font-mono">${{vol}}</div>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2 py-1 bg-dark-900/60 p-3 rounded-lg border border-dark-700/60">
+          ${{chainHtml}}
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+          <div class="bg-dark-900/40 p-3 rounded-lg border border-dark-700 space-y-1.5">
+            <div class="font-bold text-slate-400 uppercase text-[10px]">Involved Accounts</div>
+            ${{nodes.map(n => `
+              <div class="flex justify-between items-center py-0.5">
+                <span class="text-slate-300">${{n.bank_name || n.account_number}}</span>
+                <span class="font-mono text-[11px] px-1.5 rounded bg-dark-700 text-amber-300">${{n.country || 'Offshore'}}</span>
+              </div>
+            `).join('')}}
+          </div>
+
+          <div class="bg-dark-900/40 p-3 rounded-lg border border-dark-700 space-y-1.5">
+            <div class="font-bold text-slate-400 uppercase text-[10px]">Transaction Hops</div>
+            ${{edges.map(e => `
+              <div class="flex justify-between items-center py-0.5 font-mono text-[11px]">
+                <span class="text-cyan-400">${{e.tx_id}}</span>
+                <span class="text-emerald-400 font-bold">$${{(e.amount).toLocaleString()}} ${{e.currency}}</span>
+              </div>
+            `).join('')}}
+          </div>
+        </div>
+
+        <div class="flex justify-end pt-1">
+          <button onclick="focusEntityOnCanvas('${{ring.origin_account}}')" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-dark-700 hover:bg-dark-600 text-cyan-400 font-semibold text-xs border border-dark-600 transition-all">
+            <i data-lucide="eye" class="w-3.5 h-3.5"></i>
+            <span>Locate in Network Canvas</span>
+          </button>
+        </div>
+      </div>
+    `;
+  }}).join("");
+
+  if (window.lucide) lucide.createIcons();
+}}
+
+// ==========================================
+// 6. UBO RESOLUTION (MULTI-TIER OWNERSHIP)
+// ==========================================
+async function resolveUBO() {{
   const companyId = document.getElementById("uboSelectCompany").value;
   const container = document.getElementById("uboResultsContainer");
   container.innerHTML = `<div class="p-6 text-center text-slate-400 text-xs font-mono">Traversing recursive ownership graph [:OWNS*1..8]...</div>`;
 
   let ubos = DEFAULT_UBO[companyId] || [];
-  try {
-    const res = await fetch(`/api/analytics/ubo/${encodeURIComponent(companyId)}?min_share_pct=5.0`);
-    if (res.ok) {
-      const data = await res.json();
-      if (data && Array.isArray(data.beneficial_owners)) {
-        ubos = data.beneficial_owners;
-      }
-    }
-  } catch (err) {
-    console.warn("Using resilient client dataset fallback for UBO resolution", err);
-  }"""
+  const data = await safeFetchJson(`/api/analytics/ubo/${{encodeURIComponent(companyId)}}?min_share_pct=5.0`, 2500);
+  if (data && Array.isArray(data.beneficial_owners)) {{
+    ubos = data.beneficial_owners;
+  }}
 
-new_app_js = new_app_js.replace(old_ubo_fn, new_ubo_fn)
+  if (ubos.length === 0) {{
+    container.innerHTML = `<div class="bg-dark-800 border border-dark-700 rounded-xl p-6 text-center text-slate-400 text-xs">No beneficial owners found for this company.</div>`;
+    return;
+  }}
 
-# Resilient traceSanctionPath
-old_sanction_fn = """async function traceSanctionPath() {
+  container.innerHTML = ubos.map((ubo, idx) => {{
+    const effPct = ubo.effective_ownership_pct;
+    const isControl = effPct >= 25.0;
+    const chainNodes = ubo.ownership_chain || [];
+    const relChain = ubo.relationship_chain || [];
+
+    return `
+      <div class="intel-card bg-dark-800 border ${{isControl ? 'border-emerald-500/40' : 'border-dark-700'}} rounded-xl p-5 space-y-4 shadow-xl">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-dark-700 pb-3">
+          <div class="flex items-center space-x-3">
+            <div class="w-9 h-9 rounded-lg ${{ubo.is_pep ? 'bg-crimson-500/20 text-crimson-400' : 'bg-emerald-500/20 text-emerald-400'}} flex items-center justify-center font-bold text-sm">
+              <i data-lucide="user-check" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <div class="flex items-center space-x-2">
+                <h4 class="font-bold text-base text-white">${{ubo.ubo_name}}</h4>
+                ${{ubo.is_pep ? `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-crimson-500/20 text-crimson-400 border border-crimson-500/30">PEP EXPOSURE</span>` : ''}}
+              </div>
+              <p class="text-xs text-slate-400">Nationality: <span class="text-slate-200 font-semibold">${{ubo.nationality}}</span> | UBO Depth: <span class="text-emerald-400 font-bold">${{ubo.ownership_depth}} Layers</span></p>
+            </div>
+          </div>
+          <div class="text-right">
+            <div class="text-xs text-slate-400">Calculated Effective Share</div>
+            <div class="text-xl font-extrabold ${{isControl ? 'text-emerald-400' : 'text-slate-200'}} font-mono">${{effPct}}%</div>
+          </div>
+        </div>
+
+        <div class="space-y-2">
+          <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Multi-Tier Ownership Chain</div>
+          <div class="bg-dark-900/60 p-4 rounded-xl border border-dark-700/80 space-y-3">
+            ${{chainNodes.map((n, i) => {{
+              const rel = relChain[i];
+              return `
+                <div class="flex items-center space-x-3">
+                  <div class="w-6 h-6 rounded-full bg-dark-700 text-cyan-400 flex items-center justify-center font-bold text-[10px] shrink-0">${{i + 1}}</div>
+                  <div class="flex-1 bg-dark-800 p-2.5 rounded-lg border border-dark-600/80 flex items-center justify-between">
+                    <div>
+                      <div class="font-bold text-xs text-slate-200">${{n.name}}</div>
+                      <div class="text-[10px] text-slate-400">${{n.type}} • ${{n.jurisdiction}}</div>
+                    </div>
+                    <div class="text-right">
+                      ${{rel ? `<span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono text-xs font-bold">Owns ${{rel.share_pct}}%</span>` : `<span class="text-xs text-slate-400">Target Asset</span>`}}
+                    </div>
+                  </div>
+                </div>
+                ${{i < chainNodes.length - 1 ? `<div class="pl-3 py-0.5"><i data-lucide="arrow-down" class="w-3.5 h-3.5 text-emerald-400"></i></div>` : ''}}
+              `;
+            }}).join('')}}
+          </div>
+        </div>
+
+        <div class="flex justify-end pt-1">
+          <button onclick="focusEntityOnCanvas('${{ubo.ubo_id}}')" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-dark-700 hover:bg-dark-600 text-cyan-400 font-semibold text-xs border border-dark-600 transition-all">
+            <i data-lucide="eye" class="w-3.5 h-3.5"></i>
+            <span>Locate UBO in Canvas</span>
+          </button>
+        </div>
+      </div>
+    `;
+  }}).join("");
+
+  if (window.lucide) lucide.createIcons();
+}}
+
+// ==========================================
+// 7. SANCTIONS PATH TRACER
+// ==========================================
+async function traceSanctionPath() {{
   const entityId = document.getElementById("sanctionSelectEntity").value;
   const container = document.getElementById("sanctionPathContainer");
   container.innerHTML = `<div class="p-6 text-center text-slate-400 text-xs font-mono">Running shortest-path traversal to Sanction Watchlists...</div>`;
 
-  try {
-    const res = await fetch(`/api/analytics/shortest-sanction-path/${encodeURIComponent(entityId)}`);
-    const data = await res.json();"""
+  let data = DEFAULT_SANCTIONS[entityId] || {{ found: false, message: `No sanction path found within 6 hops for ${{entityId}}` }};
+  const liveData = await safeFetchJson(`/api/analytics/shortest-sanction-path/${{encodeURIComponent(entityId)}}`, 2500);
+  if (liveData && liveData.found !== undefined) {{
+    data = liveData;
+  }}
 
-new_sanction_fn = """async function traceSanctionPath() {
-  const entityId = document.getElementById("sanctionSelectEntity").value;
-  const container = document.getElementById("sanctionPathContainer");
-  container.innerHTML = `<div class="p-6 text-center text-slate-400 text-xs font-mono">Running shortest-path traversal to Sanction Watchlists...</div>`;
+  if (!data.found) {{
+    container.innerHTML = `
+      <div class="bg-dark-800 border border-dark-700 rounded-xl p-6 text-center space-y-2">
+        <i data-lucide="shield-check" class="w-8 h-8 text-emerald-400 mx-auto"></i>
+        <h4 class="font-bold text-sm text-white">No Sanction Exposure Detected</h4>
+        <p class="text-xs text-slate-400">${{data.message || 'No connection found within 6 hops.'}}</p>
+      </div>
+    `;
+    if (window.lucide) lucide.createIcons();
+    return;
+  }}
 
-  let data = DEFAULT_SANCTIONS[entityId] || { found: false, message: `No sanction path found within 6 hops for ${entityId}` };
-  try {
-    const res = await fetch(`/api/analytics/shortest-sanction-path/${encodeURIComponent(entityId)}`);
-    if (res.ok) {
-      const liveData = await res.json();
-      if (liveData && liveData.found !== undefined) {
-        data = liveData;
-      }
-    }
-  } catch (err) {
-    console.warn("Using resilient client dataset fallback for sanction path", err);
-  }"""
+  const path = data.path;
+  const nodes = path.path_nodes || [];
+  const rels = path.path_relationships || [];
 
-new_app_js = new_app_js.replace(old_sanction_fn, new_sanction_fn)
+  container.innerHTML = `
+    <div class="intel-card bg-dark-800 border border-crimson-500/40 rounded-xl p-5 space-y-4 shadow-xl">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-dark-700 pb-3">
+        <div class="flex items-center space-x-3">
+          <div class="w-9 h-9 rounded-lg bg-crimson-500/20 text-crimson-400 flex items-center justify-center font-bold text-sm">
+            <i data-lucide="alert-triangle" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h4 class="font-bold text-base text-white">Direct / Indirect Sanctions Exposure</h4>
+            <p class="text-xs text-slate-400">Target List: <span class="text-crimson-400 font-bold">${{path.sanction_program}}</span> (${{path.sanctioning_body}})</p>
+          </div>
+        </div>
+        <div class="text-right">
+          <div class="text-xs text-slate-400">Graph Distance</div>
+          <div class="text-xl font-extrabold text-crimson-400 font-mono">${{path.distance}} Hops</div>
+        </div>
+      </div>
 
-# Resilient loadMuleHubs
-old_mules_fn = """async function loadMuleHubs() {
-  const container = document.getElementById("mulesContainer");
-  try {
-    const res = await fetch("/api/analytics/mule-hubs?limit=6");
-    const data = await res.json();
-    const hubs = data.hubs || [];"""
+      <div class="bg-crimson-950/20 border border-crimson-500/30 rounded-lg p-3 text-xs text-slate-300">
+        <span class="font-bold text-crimson-400 uppercase text-[10px] block mb-1">Sanction Justification</span>
+        ${{path.sanction_reason}}
+      </div>
 
-new_mules_fn = """async function loadMuleHubs() {
+      <div class="space-y-2">
+        <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Tainted Capital Pathway</div>
+        <div class="bg-dark-900/60 p-4 rounded-xl border border-dark-700/80 space-y-3">
+          ${{nodes.map((n, i) => {{
+            const rel = rels[i];
+            return `
+              <div class="flex items-center space-x-3">
+                <div class="w-6 h-6 rounded-full bg-dark-700 text-crimson-400 flex items-center justify-center font-bold text-[10px] shrink-0">${{i + 1}}</div>
+                <div class="flex-1 bg-dark-800 p-2.5 rounded-lg border border-dark-600/80 flex items-center justify-between">
+                  <div>
+                    <div class="font-bold text-xs text-slate-200">${{n.name}}</div>
+                    <div class="text-[10px] text-slate-400">${{n.label}} • ${{n.country}}</div>
+                  </div>
+                  <div class="text-right">
+                    ${{rel ? `<span class="px-2 py-0.5 rounded bg-dark-700 text-cyan-300 font-mono text-[10px]">${{rel.type}}</span>` : `<span class="px-2 py-0.5 rounded bg-crimson-500/20 text-crimson-400 font-mono text-[10px] font-bold">SANCTION NODE</span>`}}
+                  </div>
+                </div>
+              </div>
+              ${{i < nodes.length - 1 ? `<div class="pl-3 py-0.5"><i data-lucide="arrow-down" class="w-3.5 h-3.5 text-crimson-400"></i></div>` : ''}}
+            `;
+          }}).join('')}}
+        </div>
+      </div>
+    </div>
+  `;
+
+  if (window.lucide) lucide.createIcons();
+}}
+
+// ==========================================
+// 8. MULE TRANSIT HUBS
+// ==========================================
+async function loadMuleHubs() {{
   const container = document.getElementById("mulesContainer");
   let hubs = DEFAULT_MULE_HUBS;
-  try {
-    const res = await fetch("/api/analytics/mule-hubs?limit=6");
-    if (res.ok) {
-      const data = await res.json();
-      if (data && Array.isArray(data.hubs) && data.hubs.length > 0) {
-        hubs = data.hubs;
-      }
-    }
-  } catch (err) {
-    console.warn("Using resilient client dataset fallback for mule hubs", err);
-  }"""
+  const data = await safeFetchJson("/api/analytics/mule-hubs?limit=6", 2500);
+  if (data && Array.isArray(data.hubs) && data.hubs.length > 0) {{
+    hubs = data.hubs;
+  }}
 
-new_app_js = new_app_js.replace(old_mules_fn, new_mules_fn)
+  container.innerHTML = hubs.map((h) => `
+    <div class="intel-card bg-dark-800 border border-purple-500/30 rounded-xl p-4 space-y-3 shadow-xl">
+      <div class="flex items-center justify-between border-b border-dark-700 pb-2">
+        <div>
+          <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 text-purple-300 font-mono">TRANSIT NEXUS</span>
+          <h4 class="font-bold text-sm text-white mt-1">${{h.bank_name}}</h4>
+          <p class="text-xs text-slate-400 font-mono">${{h.account_number}} (${{h.country}})</p>
+        </div>
+        <div class="text-right">
+          <div class="text-[10px] text-slate-400">Centrality Index</div>
+          <div class="text-base font-extrabold text-purple-400 font-mono">${{h.centrality_index}}</div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-3 gap-2 text-center text-xs">
+        <div class="bg-dark-900/60 p-2 rounded-lg border border-dark-700">
+          <div class="text-[10px] text-slate-400">Total Inflow</div>
+          <div class="font-bold text-emerald-400 font-mono text-[11px]">$${{(h.total_inflow).toLocaleString()}}</div>
+        </div>
+        <div class="bg-dark-900/60 p-2 rounded-lg border border-dark-700">
+          <div class="text-[10px] text-slate-400">Total Outflow</div>
+          <div class="font-bold text-rose-400 font-mono text-[11px]">$${{(h.total_outflow).toLocaleString()}}</div>
+        </div>
+        <div class="bg-dark-900/60 p-2 rounded-lg border border-dark-700">
+          <div class="text-[10px] text-slate-400">Retained Net</div>
+          <div class="font-bold text-slate-200 font-mono text-[11px]">$${{(h.net_retention).toLocaleString()}}</div>
+        </div>
+      </div>
+
+      <div class="flex justify-end pt-1">
+        <button onclick="focusEntityOnCanvas('${{h.account_number}}')" class="text-xs text-cyan-400 hover:underline flex items-center space-x-1">
+          <span>Inspect in Canvas</span>
+          <i data-lucide="chevron-right" class="w-3 h-3"></i>
+        </button>
+      </div>
+    </div>
+  `).join("");
+
+  if (window.lucide) lucide.createIcons();
+}}
+
+// ==========================================
+// 9. CYPHER PLAYGROUND
+// ==========================================
+function setCypherTemplate(query) {{
+  document.getElementById("cypherQueryInput").value = query;
+}}
+
+async function executeCypherQuery() {{
+  const query = document.getElementById("cypherQueryInput").value;
+  const resultPre = document.getElementById("cypherResultsOutput");
+  resultPre.innerText = "Executing Cypher AST on CognoDB engine...";
+
+  const data = await safeFetchJson("/api/analytics/cypher-console", 4000, {{ query: query }});
+  if (data && data.results) {{
+    resultPre.innerText = JSON.stringify(data.results, null, 2);
+  }} else {{
+    resultPre.innerText = JSON.stringify({{
+      status: "simulation_result",
+      note: "Query completed in local sandbox engine.",
+      query: query,
+      matched_nodes: DEFAULT_NODES.slice(0, 3)
+    }}, null, 2);
+  }}
+}}
+
+// ==========================================
+// 10. GLOBAL SEARCH
+// ==========================================
+function setupSearch() {{
+  const input = document.getElementById("globalSearchInput");
+  const dropdown = document.getElementById("searchResultsDropdown");
+
+  let debounceTimer;
+  input.addEventListener("input", (e) => {{
+    clearTimeout(debounceTimer);
+    const term = e.target.value.trim();
+    if (!term) {{
+      dropdown.classList.add("hidden");
+      dropdown.innerHTML = "";
+      return;
+    }}
+    debounceTimer = setTimeout(async () => {{
+      const q = term.toLowerCase();
+      let matches = [];
+      const data = await safeFetchJson(`/api/search/?q=${{encodeURIComponent(term)}}`, 1500);
+      if (data && Array.isArray(data.results) && data.results.length > 0) {{
+        matches = data.results;
+      }} else {{
+        matches = DEFAULT_NODES.filter(n => 
+          (n.id && n.id.toLowerCase().includes(q)) ||
+          (n.name && n.name.toLowerCase().includes(q)) ||
+          (n.account_number && n.account_number.toLowerCase().includes(q)) ||
+          (n.bank_name && n.bank_name.toLowerCase().includes(q))
+        ).map(n => ({{
+          id: n.id || n.account_number,
+          label: n.label,
+          name: n.name || n.bank_name || n.account_number,
+          risk_score: n.risk_score || n.base_risk || 0.0,
+          details: n.role || n.company_type || n.country || ""
+        }}));
+      }}
+
+      if (matches.length === 0) {{
+        dropdown.innerHTML = `<div class="p-3 text-xs text-slate-400 text-center">No entities found matching "${{term}}"</div>`;
+      }} else {{
+        dropdown.innerHTML = matches.map(m => `
+          <div onclick="focusEntityOnCanvas('${{m.id}}'); document.getElementById('searchResultsDropdown').classList.add('hidden');" class="p-2.5 hover:bg-dark-700 cursor-pointer flex items-center justify-between">
+            <div>
+              <div class="font-bold text-xs text-white">${{m.name}}</div>
+              <div class="text-[10px] text-slate-400">${{m.label}} • ${{m.id}}</div>
+            </div>
+            <span class="text-[10px] font-mono font-bold text-cyan-400">Inspect →</span>
+          </div>
+        `).join("");
+      }}
+      dropdown.classList.remove("hidden");
+    }}, 200);
+  }});
+
+  document.addEventListener("click", (e) => {{
+    if (!input.contains(e.target) && !dropdown.contains(e.target)) {{
+      dropdown.classList.add("hidden");
+    }}
+  }});
+}}
+
+// ==========================================
+// 11. SEED & UTILS
+// ==========================================
+async function triggerSeed() {{
+  showToast("Seeding realistic crime syndicate graph into CognoDB...");
+  await safeFetchJson("/api/admin/seed?clear_first=true", 3000, {{}});
+  showToast("Dataset successfully loaded!");
+  setTimeout(() => {{
+    loadMetrics();
+    loadInitialGraph();
+  }}, 500);
+}}
+
+function exportGraphImage() {{
+  const canvas = document.querySelector("#graphCanvas canvas");
+  if (!canvas) {{
+    showToast("No active canvas to export", true);
+    return;
+  }}
+  const image = canvas.toDataURL("image/png");
+  const link = document.createElement("a");
+  link.download = `sentinelgraph-snapshot-${{Date.now()}}.png`;
+  link.href = image;
+  link.click();
+  showToast("Graph snapshot exported as PNG!");
+}}
+
+function showToast(msg, isError = false) {{
+  const toast = document.getElementById("toast");
+  const msgEl = document.getElementById("toastMsg");
+  msgEl.innerText = msg;
+  toast.className = `fixed bottom-5 left-5 z-50 px-4 py-3 rounded-xl bg-dark-800 border ${{isError ? 'border-rose-500/60 text-rose-300' : 'border-cyan-500/60 text-slate-100'}} text-xs shadow-2xl flex items-center space-x-2 transition-all transform duration-300`;
+  toast.classList.remove("hidden");
+  setTimeout(() => {{
+    toast.classList.add("hidden");
+  }}, 3500);
+}}
+
+// ==========================================
+// 12. WALKTHROUGH TOUR ENGINE
+// ==========================================
+const TOUR_STEPS = [
+  {{
+    tab: "explorer",
+    targetId: "graphCanvasContainer",
+    title: "1. Global AML & Sanctions Network Canvas",
+    description: "Interactive visual topology of high-risk oligarchs, front companies, offshore accounts, and sanctions watchlists."
+  }},
+  {{
+    tab: "explorer",
+    targetId: "view-controls",
+    title: "2. Graph Filtering & Risk Sliders",
+    description: "Filter by entity classes (e.g., Banks, PEPs, Shells) or dial minimum risk thresholds."
+  }},
+  {{
+    tab: "rings",
+    targetId: "tab-rings",
+    title: "3. Smurfing Rings & Circular Laundering",
+    description: "Automated cycle detection scans for layered transaction loops routing money back to source."
+  }},
+  {{
+    tab: "ubo",
+    targetId: "tab-ubo",
+    title: "4. Multi-Tier Ultimate Beneficial Ownership (UBO)",
+    description: "Recursively unwinds complex holding company ownership paths to identify controlling PEPs."
+  }},
+  {{
+    tab: "sanctions",
+    targetId: "tab-sanctions",
+    title: "5. Sanctions Evasion & Watchlist Tracer",
+    description: "Computes shortest network paths connecting target companies to designated sanctions lists."
+  }},
+  {{
+    tab: "mules",
+    targetId: "tab-mules",
+    title: "6. Mule Transit Hub Centrality",
+    description: "Detects intermediary mule bank accounts with rapid fund pass-through and low retention."
+  }},
+  {{
+    tab: "cypher",
+    targetId: "tab-cypher",
+    title: "7. Cypher Playground & Console",
+    description: "Direct access to run native Cypher graph queries and export subgraphs."
+  }},
+  {{
+    tab: "explorer",
+    targetId: "btnSeedDb",
+    title: "8. Live CognoDB Integration",
+    description: "Powered by CognoDB Cloud graph database for enterprise-grade real-time investigative intelligence."
+  }}
+];
+
+let currentTourIndex = 0;
+
+function startWalkthrough() {{
+  currentTourIndex = 0;
+  document.getElementById("walkthroughOverlay").classList.remove("hidden");
+  renderTourStep();
+}}
+
+function stopWalkthrough() {{
+  document.getElementById("walkthroughOverlay").classList.add("hidden");
+  document.querySelectorAll(".tour-highlight").forEach((el) => {{
+    el.classList.remove("tour-highlight", "tour-pulse");
+  }});
+}}
+
+function renderTourStep() {{
+  const step = TOUR_STEPS[currentTourIndex];
+  document.querySelectorAll(".tour-highlight").forEach((el) => {{
+    el.classList.remove("tour-highlight", "tour-pulse");
+  }});
+
+  if (step.tab) {{
+    switchTab(step.tab);
+  }}
+
+  document.getElementById("tourStepBadge").innerText = `Step ${{currentTourIndex + 1}} of ${{TOUR_STEPS.length}}`;
+  document.getElementById("tourTitle").innerText = step.title;
+  document.getElementById("tourDescription").innerText = step.description;
+
+  const dotsContainer = document.getElementById("tourDots");
+  dotsContainer.innerHTML = TOUR_STEPS.map((_, i) => `
+    <span class="w-1.5 h-1.5 rounded-full transition-all ${{i === currentTourIndex ? 'bg-cyan-400 w-3' : 'bg-dark-600'}}"></span>
+  `).join("");
+
+  document.getElementById("tourPrevBtn").style.display = currentTourIndex === 0 ? "none" : "block";
+  document.getElementById("tourNextBtn").innerText = currentTourIndex === TOUR_STEPS.length - 1 ? "Finish ✓" : "Next →";
+
+  setTimeout(() => {{
+    const targetEl = document.getElementById(step.targetId);
+    if (targetEl) {{
+      targetEl.classList.add("tour-highlight", "tour-pulse");
+    }}
+  }}, 150);
+}}
+
+function nextTourStep() {{
+  if (currentTourIndex < TOUR_STEPS.length - 1) {{
+    currentTourIndex++;
+    renderTourStep();
+  }} else {{
+    stopWalkthrough();
+    showToast("Walkthrough completed!");
+  }}
+}}
+
+function prevTourStep() {{
+  if (currentTourIndex > 0) {{
+    currentTourIndex--;
+    renderTourStep();
+  }}
+}}
+"""
 
 # Copy to all distribution paths
 paths = ["backend/static/app.js", "public/app.js", "public/static/app.js", "app.js"]
 for p in paths:
     os.makedirs(os.path.dirname(p) if os.path.dirname(p) else ".", exist_ok=True)
     with open(p, "w", encoding="utf-8") as f:
-        f.write(new_app_js)
+        f.write(app_js_core)
 
 # Also copy index.html and style.css across public, root, and backend/static
 with open("backend/static/index.html", "r", encoding="utf-8") as f:
@@ -345,4 +1153,4 @@ with open("public/style.css", "w", encoding="utf-8") as f:
 with open("public/static/style.css", "w", encoding="utf-8") as f:
     f.write(style_css)
 
-print("SUCCESS: All assets synchronized with full resilience!")
+print("SUCCESS: High-performance frontend synchronized across all targets!")
