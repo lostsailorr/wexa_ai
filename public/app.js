@@ -2854,3 +2854,28 @@ function prevTourStep() {
     renderTourStep();
   }
 }
+
+
+// ==========================================
+// WELCOME MODAL CONTROLLERS (ROBIN BURDEWA)
+// ==========================================
+function openWelcomeModal() {
+  const modal = document.getElementById("welcomeModal");
+  if (modal) {
+    modal.classList.remove("hidden");
+    if (window.lucide) lucide.createIcons();
+  }
+}
+
+function dismissWelcomeModal() {
+  const modal = document.getElementById("welcomeModal");
+  if (modal) modal.classList.add("hidden");
+}
+
+function startWalkthroughFromWelcome() {
+  dismissWelcomeModal();
+  setTimeout(() => {
+    startWalkthrough();
+  }, 150);
+}
+
