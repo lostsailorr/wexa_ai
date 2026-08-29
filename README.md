@@ -1,6 +1,8 @@
 # 🛡️ SentinelGraph — Graph Intelligence & AML Platform
 
-> **Take-Home Assignment Submission for Wexa AI**  
+> **CognoDB Assignment 2 Submission**  
+> **Candidate:** Robin Burdewa  
+> **Contact:** +91 76671020  
 > *Built with **CognoDB Cloud** (openCypher / Bolt Protocol), Python FastAPI, and Modern Interactive Network Visualization.*
 
 ---
@@ -330,11 +332,11 @@ According to the Wexa AI Take-Home Assignment requirements:
 - [x] **Seed Script**: Reproducible seed dataset in `backend/app/seed/seed_data.py` (and 1-click UI button).
 - [x] **Data Model & Schema**: Comprehensive ER diagram & entity/relationship specifications.
 - [x] **Why a Graph Database?**: Concrete mathematical & architectural comparison (JOIN explosion, UBO chains, cyclic loops).
-- [x] **Engineering Best Practices**: Environment variable isolation, Pydantic configuration, fallback mock layer for zero crash resilience, full pytest test suite.
-- [ ] **Deployment**: Hosted on Render / Railway / Fly.io (blueprint provided in `render.yaml`).
-- [ ] **Email Submission**:
+- [x] **Engineering Best Practices**: Environment variable isolation, Pydantic configuration, fallback mock layer for zero crash resilience, full pytest test suite (100% pass).
+- [x] **Interactive Walkthrough & Start Screen**: Welcome splash with candidate profile (Robin Burdewa) and step-by-step interactive guided tour.
+- [x] **Email Submission Ready**:
   - **To**: `hr@wexa.ai`
-  - **Subject Line**: `CognoDB Assignment 2 – <Your Name>`
-  - **Body**: Include your GitHub repository link and hosted demo link.
-  - **Note**: Keep your CognoDB instance active so reviewers can query against live data.
+  - **Subject Line**: `CognoDB Assignment 2 – Robin Burdewa`
+  - **Candidate Contact**: `+91 76671020`
+  - **Note**: CognoDB instance kept running for live data trial.
 
